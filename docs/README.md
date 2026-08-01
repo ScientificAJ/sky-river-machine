@@ -25,7 +25,7 @@ This documentation describes what we are going to build. It is an implementation
 
 ## What remains deliberately open
 
-- The exact tiny model and runtime should be selected after measuring package size, cold-start time, CPU use, and quality on representative tabs.
+- Qwen2.5-0.5B-Instruct is the first implementation baseline; release inclusion and the exact runtime artifact still depend on measured package size, cold-start time, CPU use, and quality on representative tabs.
 - A native companion process is not part of the first architecture. It may be added later behind the same model-runner interface if browser-only inference is insufficient.
 - Exact default thresholds are calibration values, not product identity. They belong in settings and performance tests.
 

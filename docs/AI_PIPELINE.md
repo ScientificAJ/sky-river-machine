@@ -58,6 +58,25 @@ Responses must be structured, schema-validated, size-limited, and discarded if m
 
 ## 4. Model/runtime strategy
 
+### Selected first model
+
+Use **Qwen2.5-0.5B-Instruct** as the first implementation and evaluation baseline. `ModelRunner` should load the ONNX conversion `onnx-community/Qwen2.5-0.5B-Instruct` through Transformers.js and ONNX Runtime Web.
+
+This model is the best current fit because it is small enough to test on-device (0.49B parameters), is Apache-2.0 licensed, supports more than 29 languages, and was explicitly trained to follow instructions and produce structured output, especially JSON. Transformers.js documents this exact ONNX model running with 4-bit quantization on WebGPU and supports local model paths, CPU inference through WebAssembly, and disabling remote model access.
+
+Start evaluation with `q4f16` on WebGPU and `q8` on WebAssembly. These are runtime artifacts of the same model, not separate organization behaviors. Pin the chosen artifact revision and checksum, package the model and matching WASM runtime locally, and disable remote model loading. Never fall back to a hosted model.
+
+The public ONNX artifacts are currently about 483 MB for `q4f16` and 512 MB for `q8`, before tokenizer and runtime files. Treat the model as the optional local model package described below rather than silently inflating the base extension. Do not ship both artifacts unless cross-browser measurements prove that both are necessary.
+
+This is an implementation baseline, not a release-quality claim. It must pass the representative fixture evaluation in [TESTING_PERFORMANCE.md](TESTING_PERFORMANCE.md) on low-end CPU-only and normal WebGPU profiles. Measure grouping quality, structured-output validity, multilingual behavior, cold start, task latency, peak memory, cancellation, and adversarial metadata handling. Replace it behind `ModelRunner` if it misses the measured budgets or quality bar; heuristic mode remains available throughout.
+
+Sources checked 2026-08-01:
+
+- [Qwen2.5-0.5B-Instruct model card](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)
+- [Transformers.js quantization guide](https://huggingface.co/docs/transformers.js/en/guides/dtypes)
+- [Transformers.js local-model configuration](https://huggingface.co/docs/transformers.js/main/en/custom_usage)
+- [ONNX artifact sizes](https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct/tree/main/onnx)
+
 The first implementation should target a very small quantized model that can run:
 
 - CPU-only through WebAssembly.
