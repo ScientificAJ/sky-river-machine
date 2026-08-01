@@ -1,6 +1,6 @@
 # Sky River Machine implementation plan
 
-> Status: implementation roadmap. The repository now contains local slices through the foundation, lifecycle, bounded analysis fallback, privacy controls, UI surfaces, synthetic scale fixtures, and a reproducible local-model evaluation gate. Real-browser smoke, representative release performance/fault injection, and a passing local-model artifact remain separately recorded in [`docs/RELEASE_STATUS.md`](docs/RELEASE_STATUS.md); no browser support or release claim is implied here.
+> Status: implementation roadmap. The repository now contains local slices through the foundation, lifecycle, bounded analysis fallback, privacy controls, UI surfaces, synthetic scale fixtures, and reproducible local-model evaluation gates. The tested q4f16 and q8 candidates did not pass the runtime/structured-output gates. Real-browser smoke and representative release performance/fault injection remain separately recorded in [`docs/RELEASE_STATUS.md`](docs/RELEASE_STATUS.md); no browser support or release claim is implied here.
 
 ## 1. What this plan is for
 

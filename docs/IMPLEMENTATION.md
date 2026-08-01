@@ -17,7 +17,7 @@ Implemented locally:
 - checkpointed lifecycle operations, restore/archive/rest/delete paths, bounded heuristic suggestions, model-unavailable contracts, validated model-response fallback, correction records, and explicit visible-context/export/delete controls.
 - strict extension-message validation, explicit workspace deletion/data inspection, bounded model requests, and a reproducible offline model-evaluation command.
 
-Focused automated tests are part of implementation verification. `npm run evaluate:model` records a candidate model gate separately; the current candidate fails before inference and is not bundled. Real-browser smoke testing remains deferred by the project owner; a passing focused test suite does not establish browser support.
+Focused automated tests are part of implementation verification. `npm run evaluate:model` records candidate model gates separately; q4f16 fails before inference and q8 runs but fails the structured-output and latency probes, so neither is bundled. Real-browser smoke testing remains deferred by the project owner; a passing focused test suite does not establish browser support.
 
 Build commands:
 

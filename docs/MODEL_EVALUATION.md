@@ -27,3 +27,28 @@ Observed on 2026-08-01, Node v24.13.0, Linux x86_64, CPU mode:
 - No model output was accepted, no browser action was available to the runner, and no remote fallback was attempted.
 
 Decision: do not bundle or enable this candidate. Keep `UnavailableModelRunner`, the validated response contract, heuristic suggestions, metadata search, and manual organization as the safe base behavior while another artifact/runtime combination is evaluated. This is a measured model-gate failure, not a claim that the candidate is universally unusable.
+
+## q8 CPU follow-up
+
+The same pinned repository revision was evaluated with the CPU-oriented `onnx/model_quantized.onnx` artifact, using the q8 runtime dtype.
+
+- Artifact: `onnx/model_quantized.onnx`
+- Size: `135658354` bytes
+- SHA-256: `0fab87142e3eb1fcacb881f8282e7473e62ad66920c347b81f088da6fda2da37`
+- Runtime: Transformers.js 4.2.0, local files only, remote models disabled
+- Device: CPU
+- Load time: `1501` ms
+- Synthetic runs: `19973` ms and `20959` ms
+- Structured-output probe: one of two runs produced JSON-like text; the second did not
+
+Decision: runtime compatibility improved, but this artifact still fails the structured-output and latency gates. It is not bundled or enabled. The extension continues to use the safe model-unavailable path until a candidate passes representative grouping-quality, output-contract, resource, and licensing evaluation.
+
+Reproduction:
+
+```bash
+MODEL_DIR=/absolute/path/to/SmolLM2-135M-Instruct-ONNX \
+MODEL_FILE=onnx/model_quantized.onnx \
+MODEL_SHA256=0fab87142e3eb1fcacb881f8282e7473e62ad66920c347b81f088da6fda2da37 \
+MODEL_DTYPE=q8 \
+npm run evaluate:model
+```

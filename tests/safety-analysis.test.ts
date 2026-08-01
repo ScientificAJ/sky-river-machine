@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 import { duplicateScore } from '../src/analysis/heuristics';
 import { validateSuggestionOutput } from '../src/analysis/validation';
 import { canMutateTab } from '../src/core/lifecycle';
+import { planOperation } from '../src/core/operations';
 import type { TabRecord } from '../src/shared/types';
 
 const record: TabRecord = {
@@ -25,4 +26,11 @@ test('heuristics identify exact duplicates without a domain category map', () =>
 
 test('model-shaped output rejects record IDs outside its request', () => {
   expect(validateSuggestionOutput({ groups: [{ name: 'Unsafe', recordIds: ['other'], confidence: 1 }] }, new Set(['fictional-record'])).ok).toBe(false);
+});
+
+test('operation planning snapshots the reversible state before mutation', () => {
+  const operation = planOperation('lifecycle', record, 'close', { state: 'Extinct' }, 42);
+  expect(operation.status).toBe('planned');
+  expect(operation.before).toEqual([expect.objectContaining({ recordId: record.recordId, browserTabId: 7, url: record.url, state: 'Active' })]);
+  expect(operation.browserPlan).toEqual({ action: 'close', tabIds: [7] });
 });
