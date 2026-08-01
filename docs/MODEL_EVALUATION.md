@@ -14,6 +14,7 @@ Candidate:
 Reproduction:
 
 ```bash
+npm install --no-save --package-lock=false @huggingface/transformers@4.2.0
 MODEL_DIR=/absolute/path/to/SmolLM2-135M-Instruct-ONNX \
 MODEL_SHA256=662d0a9d8d5d56e3746a5bf3b3ede96bd2d4d3594d9b2e282baebd4f34cf3589 \
 npm run evaluate:model

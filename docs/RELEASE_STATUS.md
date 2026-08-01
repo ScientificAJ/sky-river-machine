@@ -18,7 +18,7 @@ Current local verification:
 - `MODEL_DIR=/tmp/sky-river-smollm npm run evaluate:model`: reproduces the recorded offline model failure with remote loading disabled.
 - `npm audit --omit=dev --audit-level=high`: reports zero production dependency vulnerabilities.
 
-The full dependency audit currently reports four high-severity issues in development-only model-evaluation dependencies (`onnxruntime-node`/`sharp`); those packages are not imported into or bundled with either extension build.
+The evaluator runtime is installed only temporarily for the documented offline experiment; it is not in the committed dependency graph and is not imported into or bundled with either extension build.
 
 Deferred release verification:
 

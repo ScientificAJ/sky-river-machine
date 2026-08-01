@@ -1,7 +1,14 @@
 import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
-import { env, pipeline } from '@huggingface/transformers';
+let transformers;
+try {
+  transformers = await import('@huggingface/transformers');
+} catch {
+  console.error('Install the evaluator temporarily with: npm install --no-save --package-lock=false @huggingface/transformers@4.2.0');
+  process.exit(2);
+}
+const { env, pipeline } = transformers;
 
 const modelDir = process.env.MODEL_DIR ? resolve(process.env.MODEL_DIR) : null;
 const modelFile = modelDir ? join(modelDir, 'onnx', 'model_q4f16.onnx') : null;
