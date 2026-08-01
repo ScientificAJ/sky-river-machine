@@ -13,6 +13,7 @@ Current local verification:
 - `npm run build:chromium`: passes.
 - `npm run build:firefox`: passes.
 - `npm run audit`: checks permissions and packaged artifacts for remote code/request patterns, host permissions, content scripts, and tab mutations.
+- `docs/PERFORMANCE.md`: records a pure-path synthetic calibration only; it is not representative release performance.
 
 Deferred release verification:
 

@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import { safeAnalysisInput } from '../src/analysis/normalize';
 import { suggestWithSafeFallback } from '../src/analysis/pipeline';
+import { validateModelRequest } from '../src/analysis/model';
 import type { ModelRunner } from '../src/analysis/model';
 import type { TabRecord } from '../src/shared/types';
 
@@ -40,4 +41,9 @@ test('model runner failure keeps the heuristic fallback usable', async () => {
   const runner: ModelRunner = { run: async () => { throw new Error('fictional model failure'); } };
   const result = await suggestWithSafeFallback([record], runner);
   expect(result.model).toBe('unavailable');
+});
+
+test('model request validation bounds input and aligned revisions', () => {
+  expect(validateModelRequest({ task: 'relateTabs', schemaVersion: 1, input: { text: 'fictional' }, recordIds: ['one'], revisions: [1], modelId: 'fictional', modelVersion: '1', artifactChecksum: 'sum', strategyVersion: '1', timeBudgetMs: 100 })).toBe(true);
+  expect(validateModelRequest({ task: 'relateTabs', schemaVersion: 1, input: 'x'.repeat(20_001), recordIds: ['one'], revisions: [], modelId: 'fictional', modelVersion: '1', artifactChecksum: 'sum', strategyVersion: '1', timeBudgetMs: 100 })).toBe(false);
 });

@@ -102,6 +102,7 @@ export type InventoryMessage =
   | { type: 'create-workspace'; name: string }
   | { type: 'rename-workspace'; workspaceId: string; name: string }
   | { type: 'archive-workspace'; workspaceId: string }
+  | { type: 'delete-workspace'; workspaceId: string; confirm: boolean }
   | { type: 'move-record'; recordId: string; workspaceId: string | null }
   | { type: 'set-protection'; recordId: string; important?: boolean; neverSleep?: boolean; keepUntilCompleted?: boolean }
   | { type: 'lifecycle'; recordId: string; action: 'wake' | 'rest' | 'archive' | 'restore'; confirm?: boolean }

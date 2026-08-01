@@ -6,11 +6,18 @@ import type { RawRuntimeApi } from '../browser/raw';
 import { canMutateTab } from '../core/lifecycle';
 import { planOperation } from '../core/operations';
 import { suggestWithSafeFallback } from '../analysis/pipeline';
+import { parseInventoryMessage } from '../shared/messages';
 
 const adapter = createBrowserAdapter();
 const store = new IndexedDbTabStore();
 let refreshInFlight: Promise<InventoryResponse> | null = null;
 let refreshQueued = false;
+
+function isExtensionSender(sender: unknown): boolean {
+  if (!sender || typeof sender !== 'object') return false;
+  const value = sender as { id?: unknown; url?: unknown };
+  return (typeof value.id === 'string' && value.id.length > 0) || (typeof value.url === 'string' && /^(chrome|moz)-extension:\/\//.test(value.url));
+}
 
 function runtime(): RawRuntimeApi {
   const globals = globalThis as unknown as { browser?: { runtime: RawRuntimeApi }; chrome?: { runtime: RawRuntimeApi } };
@@ -56,6 +63,13 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
     return { ok: true, records: [] };
   }
   if (message.type === 'export-data') return { ok: true, data: JSON.stringify(await store.exportAll()) };
+  if (message.type === 'delete-workspace') {
+    if (!message.confirm) return { ok: false, error: 'Deleting a workspace requires explicit confirmation.' };
+    const workspace = (await store.listWorkspaces()).find((item) => item.workspaceId === message.workspaceId);
+    if (!workspace) return { ok: false, error: 'That workspace is no longer available.' };
+    await store.deleteWorkspace(workspace.workspaceId);
+    return { ok: true, workspaces: await store.listWorkspaces() };
+  }
   if (message.type === 'extract-visible-context') {
     if (!message.confirm) return { ok: false, error: 'Visible page context requires explicit confirmation.' };
     const record = await store.get(message.recordId);
@@ -240,8 +254,11 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
 }
 
 const messageApi = runtime().onMessage;
-messageApi?.addListener((message, _sender, sendResponse) => {
-  void handleMessage(message as InventoryMessage).then(sendResponse).catch(() => sendResponse({ ok: false, error: 'The local workspace action could not be completed.' }));
+messageApi?.addListener((message, sender, sendResponse) => {
+  if (!isExtensionSender(sender)) { sendResponse({ ok: false, error: 'That message did not come from the extension.' }); return false; }
+  const parsed = parseInventoryMessage(message);
+  if (!parsed) { sendResponse({ ok: false, error: 'That extension message was invalid.' }); return false; }
+  void handleMessage(parsed).then(sendResponse).catch(() => sendResponse({ ok: false, error: 'The local workspace action could not be completed.' }));
   return true;
 });
 

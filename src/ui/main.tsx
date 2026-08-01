@@ -72,6 +72,13 @@ function App() {
     await load();
   };
 
+  const deleteWorkspace = async (workspace: Workspace) => {
+    if (!window.confirm(`Delete “${workspace.name}” and unassign its tabs? This removes only Sky River Machine records.`)) return;
+    const response = await sendMessage({ type: 'delete-workspace', workspaceId: workspace.workspaceId, confirm: true });
+    if (!response.ok) window.alert(response.error);
+    await load();
+  };
+
   const lifecycle = async (record: TabRecord, action: 'wake' | 'rest' | 'archive' | 'restore') => {
     const confirm = action === 'archive' ? window.confirm(`Archive “${record.title}”? The record will remain restorable.`) : undefined;
     if (action === 'archive' && !confirm) return;
@@ -186,11 +193,13 @@ function App() {
           <label class="field">Create workspace<input value={workspaceName} onInput={(event) => setWorkspaceName((event.currentTarget as HTMLInputElement).value)} placeholder="e.g. Fictional project" /></label>
           <button type="submit">Create workspace</button>
         </form>
-        {workspaces.filter((workspace) => !workspace.archivedAt).map((workspace) => <p class="workspace-row" key={workspace.workspaceId}>{workspace.name} <button type="button" onClick={() => void renameWorkspace(workspace)}>Rename</button> <button type="button" onClick={() => void archiveWorkspace(workspace)}>Archive workspace</button></p>)}
+        {workspaces.filter((workspace) => !workspace.archivedAt).map((workspace) => <p class="workspace-row" key={workspace.workspaceId}>{workspace.name} <button type="button" onClick={() => void renameWorkspace(workspace)}>Rename</button> <button type="button" onClick={() => void archiveWorkspace(workspace)}>Archive workspace</button> <button type="button" onClick={() => void deleteWorkspace(workspace)}>Delete workspace</button></p>)}
       </section>
       <section id="settings" class="workspace-section" aria-labelledby="privacy-heading">
         <h2 id="privacy-heading">Local data controls</h2>
         <p class="quiet">Metadata is local by default. Visible context is optional, bounded, and deletable. No private-window data is captured.</p>
+        <details><summary>What is stored locally?</summary><p class="quiet">Tab metadata, workspace names, protection choices, operation recovery records, suggestions, corrections, and any user-confirmed visible headings/description. Browser history, cookies, credentials, and prior exports are outside this deletion control.</p></details>
+        <p class="quiet">Export includes the stored categories above. Treat the resulting local file as sensitive browsing data.</p>
         <button type="button" onClick={() => void exportData()}>Export local data</button>
         <button type="button" onClick={() => void deleteAll()}>Delete all local data</button>
       </section>

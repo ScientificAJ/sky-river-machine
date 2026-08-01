@@ -80,6 +80,25 @@ export class IndexedDbTabStore {
     });
   }
 
+  async deleteWorkspace(workspaceId: string): Promise<void> {
+    const database = await this.open();
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction([TAB_STORE, WORKSPACE_STORE], 'readwrite');
+      const tabs = transaction.objectStore(TAB_STORE);
+      const request = tabs.getAll();
+      request.onsuccess = () => {
+        for (const record of request.result as TabRecord[]) {
+          if (record.workspaceId === workspaceId) tabs.put({ ...record, workspaceId: null, updatedAt: Date.now(), revision: record.revision + 1 });
+        }
+        transaction.objectStore(WORKSPACE_STORE).delete(workspaceId);
+      };
+      request.onerror = () => reject(new Error('Workspace records could not be read for deletion'));
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(new Error('Workspace could not be deleted'));
+      transaction.onabort = () => reject(new Error('Workspace deletion was aborted'));
+    });
+  }
+
   async updateRecordWorkspace(recordId: string, workspaceId: string | null): Promise<void> {
     const database = await this.open();
     await new Promise<void>((resolve, reject) => {
