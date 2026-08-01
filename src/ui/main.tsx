@@ -32,8 +32,12 @@ function App() {
 
   const load = async () => {
     setStatus('loading');
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      const [response, workspaceResponse, suggestionResponse, recoveryResponse] = await Promise.all([refreshInventory(), sendMessage({ type: 'list-workspaces' }), sendMessage({ type: 'get-suggestions' }), sendMessage({ type: 'get-recovery' })]);
+      const [response, workspaceResponse, suggestionResponse, recoveryResponse] = await Promise.race([
+        Promise.all([refreshInventory(), sendMessage({ type: 'list-workspaces' }), sendMessage({ type: 'get-suggestions' }), sendMessage({ type: 'get-recovery' })]),
+        new Promise<never>((_, reject) => { timeout = setTimeout(() => reject(new Error('The extension background worker did not respond.')), 5000); }),
+      ]);
       if (!response.ok) throw new Error(response.error);
       if (!('records' in response)) throw new Error('Inventory response was incomplete');
       if (!workspaceResponse.ok) throw new Error(workspaceResponse.error);
@@ -47,6 +51,8 @@ function App() {
       setSearchVersion((value) => value + 1);
     } catch {
       setStatus('error');
+    } finally {
+      if (timeout !== undefined) clearTimeout(timeout);
     }
   };
 
@@ -132,7 +138,7 @@ function App() {
     if (response.ok && 'suggestions' in response) {
       setSuggestions(response.suggestions);
       setDrafts((current) => ({ ...current, ...Object.fromEntries(response.suggestions.map((suggestion) => [suggestion.suggestionId, draftFromSuggestion(suggestion)])) }));
-    }
+    } else if (!response.ok) window.alert(response.error);
   };
 
   const updateDraft = (suggestion: SuggestionBatch, update: (draft: SuggestionDraft[]) => SuggestionDraft[]) => {
@@ -223,13 +229,13 @@ function App() {
       <p class="lede">This development build is under construction.</p>
       <p class="quiet">Metadata is the default. A separate, confirmed action can read bounded visible headings and a description locally. Consequential tab changes always require review and recovery.</p>
       <nav class="primary-nav" aria-label="Primary">{(['home', 'search', 'workspaces', 'recovery', 'settings'] as const).map((destination) => <button type="button" key={destination} aria-current={view === destination ? 'page' : undefined} onClick={() => setView(destination)}>{destination[0]!.toUpperCase() + destination.slice(1)}</button>)}</nav>
-      <section id="home" hidden={view !== 'home'} class="home-section" aria-labelledby="home-heading"><h2 id="home-heading">Home</h2><button type="button" onClick={() => void load()} disabled={status === 'loading'}>Refresh local tab metadata</button><button type="button" onClick={() => void organize()} disabled={status !== 'ready'}>Suggest workspaces locally</button><p class="quiet">Local semantic model: MiniLM embeddings. If it cannot load, bounded heuristic suggestions remain available. Review every suggestion before applying it.</p>{recovery.length > 0 && <p class="recovery" role="alert">{recovery.length} operation{recovery.length === 1 ? '' : 's'} need review. Open Recovery to inspect them.</p>}</section>
+      <section id="home" hidden={view !== 'home'} class="home-section" aria-labelledby="home-heading"><h2 id="home-heading">Home</h2><button type="button" onClick={() => void load()} disabled={status === 'loading'}>Refresh local tab metadata</button><button type="button" onClick={() => void organize()} disabled={status === 'loading'}>Suggest workspaces locally</button><p class="quiet">Local semantic model: MiniLM embeddings. If it cannot load, bounded heuristic suggestions remain available. Review every suggestion before applying it.</p>{recovery.length > 0 && <p class="recovery" role="alert">{recovery.length} operation{recovery.length === 1 ? '' : 's'} need review. Open Recovery to inspect them.</p>}</section>
       <section id="recovery" hidden={view !== 'recovery'} class="recovery" aria-labelledby="recovery-heading"><h2 id="recovery-heading">Recovery</h2>{recovery.length > 0 ? <><p role="alert">{recovery.length} operation{recovery.length === 1 ? '' : 's'} need review.</p>{recovery.map((operation) => <p key={operation.operationId}><strong>{operation.kind} · {operation.status}</strong>{operation.error && <> · {operation.error}</>}{(operation.status === 'partial' || operation.status === 'applied') && <button type="button" onClick={() => void undo(operation.operationId)}>Try undo</button>}</p>)}</> : <p>No pending recovery actions.</p>}</section>
       {lastOperation && lastOperation.status === 'applied' && <p class="notice" role="status">{lastOperation.kind} completed. <button type="button" onClick={() => void undo(lastOperation.operationId)}>Undo</button></p>}
       <section id="search" hidden={view !== 'search'} class="search-section" aria-labelledby="search-heading"><h2 id="search-heading">Search</h2><label class="field">Search local metadata<input value={query} onInput={(event) => setQuery((event.currentTarget as HTMLInputElement).value)} placeholder="Title, domain, URL, workspace" /></label>
       <p class="status" role="status" aria-live="polite">
         {status === 'loading' && 'Reading permitted tab metadata locally…'}
-        {status === 'error' && 'Could not read permitted tab metadata. Check the extension permission and try again.'}
+        {status === 'error' && 'Could not read permitted tab metadata. Check the extension permission, reload the extension, and try again.'}
         {status === 'ready' && `${recordCount} currently observed record${recordCount === 1 ? '' : 's'}.`}
       </p>
       {query.trim() && searchStatus === 'loading' && <p class="quiet" role="status">Searching local metadata…</p>}
