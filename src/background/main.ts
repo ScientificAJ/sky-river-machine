@@ -6,6 +6,8 @@ import type { RawRuntimeApi } from '../browser/raw';
 
 const adapter = createBrowserAdapter();
 const store = new IndexedDbTabStore();
+let refreshInFlight: Promise<InventoryResponse> | null = null;
+let refreshQueued = false;
 
 function runtime(): RawRuntimeApi {
   const globals = globalThis as unknown as { browser?: { runtime: RawRuntimeApi }; chrome?: { runtime: RawRuntimeApi } };
@@ -15,6 +17,21 @@ function runtime(): RawRuntimeApi {
 }
 
 async function refreshInventory(): Promise<InventoryResponse> {
+  if (refreshInFlight) {
+    refreshQueued = true;
+    return await refreshInFlight;
+  }
+  refreshInFlight = refreshInventoryOnce();
+  const result = await refreshInFlight;
+  refreshInFlight = null;
+  if (refreshQueued) {
+    refreshQueued = false;
+    void refreshInventory();
+  }
+  return result;
+}
+
+async function refreshInventoryOnce(): Promise<InventoryResponse> {
   try {
     const tabs = await adapter.queryTabs();
     const records = reconcileTabs(await store.list(), tabs, Date.now());
