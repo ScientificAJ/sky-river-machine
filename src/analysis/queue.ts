@@ -4,10 +4,11 @@ export type AnalysisJob = { recordId: string; revision: number; priority: 'high'
 
 export class BoundedAnalysisQueue {
   private readonly jobs = new Map<string, AnalysisJob>();
-  constructor(private readonly maxPending = BUDGETS.highPriorityJobs) {}
+  constructor(private readonly maxHigh: number = BUDGETS.highPriorityJobs, private readonly maxLow: number = BUDGETS.lowPriorityJobs) {}
   enqueue(job: AnalysisJob): boolean {
     if (this.jobs.has(job.recordId)) { this.jobs.set(job.recordId, job); return true; }
-    if (this.jobs.size >= this.maxPending) return false;
+    const pending = [...this.jobs.values()].filter((item) => item.priority === job.priority).length;
+    if (pending >= (job.priority === 'high' ? this.maxHigh : this.maxLow)) return false;
     this.jobs.set(job.recordId, job);
     return true;
   }

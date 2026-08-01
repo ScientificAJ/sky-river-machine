@@ -35,3 +35,9 @@ test('malformed model output keeps the heuristic fallback usable', async () => {
   expect(result.model).toBe('unavailable');
   expect(result.suggestion.status).toBe('pending');
 });
+
+test('model runner failure keeps the heuristic fallback usable', async () => {
+  const runner: ModelRunner = { run: async () => { throw new Error('fictional model failure'); } };
+  const result = await suggestWithSafeFallback([record], runner);
+  expect(result.model).toBe('unavailable');
+});
