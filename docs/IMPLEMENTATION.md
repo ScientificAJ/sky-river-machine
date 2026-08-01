@@ -29,6 +29,7 @@ Build commands:
 npm install
 npm run build:chromium
 npm run build:firefox
+npm run package:all
 ```
 
 The unpacked outputs are `dist/chromium` and `dist/firefox`. The Chromium manifest uses a Manifest V3 service worker. The Firefox manifest uses a background script entry. Both request only the documented tab metadata and user-invoked context permissions; the MiniLM model, tokenizer/config, and ONNX runtime are packaged locally, with no host permissions, persistent content scripts, remote model loading, or analytics.

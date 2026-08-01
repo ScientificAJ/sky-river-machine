@@ -6,6 +6,9 @@
   "scripts": {
     "build:chromium": "node scripts/build-browser.mjs chromium",
     "build:firefox": "node scripts/build-browser.mjs firefox",
+    "package:chromium": "npm run build:chromium && node scripts/package-browser.mjs chromium",
+    "package:firefox": "npm run build:firefox && node scripts/package-browser.mjs firefox",
+    "package:all": "npm run package:chromium && npm run package:firefox",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "audit": "node scripts/audit-build.mjs",

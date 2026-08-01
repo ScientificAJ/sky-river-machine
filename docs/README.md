@@ -9,6 +9,7 @@ This documentation describes what we are going to build. It is an implementation
 ## Documents
 
 - [Implementation plan](../plan.md) — ordered build phases, acceptance gates, verification, and a junior-developer starting path.
+- [Installable packages](INSTALL.md) — build and load Chromium-family ZIP and Firefox XPI artifacts.
 - [Technical architecture](ARCHITECTURE.md) — runtime, browser adapters, data flow, lifecycle engine, and decisions.
 - [Data model](DATA_MODEL.md) — durable records, state transitions, versioning, and persistence rules.
 - [AI pipeline](AI_PIPELINE.md) — local inference, heuristics, analysis queues, search, and learning from corrections.
