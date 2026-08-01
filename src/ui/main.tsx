@@ -14,6 +14,7 @@ function App() {
   const [suggestions, setSuggestions] = useState<SuggestionBatch[]>([]);
   const [recovery, setRecovery] = useState<Operation[]>([]);
   const [lastOperation, setLastOperation] = useState<Operation | null>(null);
+  const [view, setView] = useState<'home' | 'search' | 'workspaces' | 'recovery' | 'settings'>('home');
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
   const load = async () => {
@@ -148,14 +149,11 @@ function App() {
       <h1>Sky River Machine</h1>
       <p class="lede">This development build is under construction.</p>
       <p class="quiet">Metadata is the default. A separate, confirmed action can read bounded visible headings and a description locally. Consequential tab changes always require review and recovery.</p>
-      <nav class="primary-nav" aria-label="Primary"><a href="#home">Home</a><a href="#search">Search</a><a href="#workspaces">Workspaces</a><a href="#recovery">Recovery</a><a href="#settings">Settings</a></nav>
-      <span id="home" class="anchor-target" aria-hidden="true"></span>
-      <button type="button" onClick={() => void load()} disabled={status === 'loading'}>Refresh local tab metadata</button>
-      <button type="button" onClick={() => void organize()} disabled={status !== 'ready'}>Organize tabs (heuristic suggestions)</button>
-      <p class="quiet">Local model status: unavailable in this build. Heuristic suggestions and manual organization remain available.</p>
-      <section id="recovery" class="recovery" aria-labelledby="recovery-heading"><h2 id="recovery-heading">Recovery</h2>{recovery.length > 0 ? <><p role="alert">{recovery.length} operation{recovery.length === 1 ? '' : 's'} need review.</p>{recovery.map((operation) => <p key={operation.operationId}>{operation.kind} · {operation.status} <button type="button" onClick={() => void undo(operation.operationId)}>Try undo</button></p>)}</> : <p>No pending recovery actions.</p>}</section>
+      <nav class="primary-nav" aria-label="Primary">{(['home', 'search', 'workspaces', 'recovery', 'settings'] as const).map((destination) => <button type="button" key={destination} aria-current={view === destination ? 'page' : undefined} onClick={() => setView(destination)}>{destination[0]!.toUpperCase() + destination.slice(1)}</button>)}</nav>
+      <section id="home" hidden={view !== 'home'} class="home-section" aria-labelledby="home-heading"><h2 id="home-heading">Home</h2><button type="button" onClick={() => void load()} disabled={status === 'loading'}>Refresh local tab metadata</button><button type="button" onClick={() => void organize()} disabled={status !== 'ready'}>Organize tabs (heuristic suggestions)</button><p class="quiet">Local model status: unavailable in this build. Heuristic suggestions and manual organization remain available.</p>{recovery.length > 0 && <p class="recovery" role="alert">{recovery.length} operation{recovery.length === 1 ? '' : 's'} need review. Open Recovery to inspect them.</p>}</section>
+      <section id="recovery" hidden={view !== 'recovery'} class="recovery" aria-labelledby="recovery-heading"><h2 id="recovery-heading">Recovery</h2>{recovery.length > 0 ? <><p role="alert">{recovery.length} operation{recovery.length === 1 ? '' : 's'} need review.</p>{recovery.map((operation) => <p key={operation.operationId}>{operation.kind} · {operation.status} <button type="button" onClick={() => void undo(operation.operationId)}>Try undo</button></p>)}</> : <p>No pending recovery actions.</p>}</section>
       {lastOperation && lastOperation.status === 'applied' && <p class="notice" role="status">{lastOperation.kind} completed. <button type="button" onClick={() => void undo(lastOperation.operationId)}>Undo</button></p>}
-      <label id="search" class="field">Search local metadata<input value={query} onInput={(event) => setQuery((event.currentTarget as HTMLInputElement).value)} placeholder="Title, domain, URL, workspace" /></label>
+      <section id="search" hidden={view !== 'search'} class="search-section" aria-labelledby="search-heading"><h2 id="search-heading">Search</h2><label class="field">Search local metadata<input value={query} onInput={(event) => setQuery((event.currentTarget as HTMLInputElement).value)} placeholder="Title, domain, URL, workspace" /></label>
       <p class="status" role="status" aria-live="polite">
         {status === 'loading' && 'Reading permitted tab metadata locally…'}
         {status === 'error' && 'Could not read permitted tab metadata. Check the extension permission and try again.'}
@@ -181,8 +179,8 @@ function App() {
             {record.context && <span>Visible context stored locally: {record.context.headings.length} heading{record.context.headings.length === 1 ? '' : 's'}</span>}
           </li>
         ))}
-      </ul></>}
-      {suggestions.filter((suggestion) => suggestion.status === 'pending').map((suggestion) => <section class="suggestion" key={suggestion.suggestionId} aria-labelledby={`suggestion-${suggestion.suggestionId}`}>
+      </ul></>}</section>
+      {view === 'home' && suggestions.filter((suggestion) => suggestion.status === 'pending').map((suggestion) => <section class="suggestion" key={suggestion.suggestionId} aria-labelledby={`suggestion-${suggestion.suggestionId}`}>
         <h2 id={`suggestion-${suggestion.suggestionId}`}>Suggested workspace review</h2>
         <p class="quiet">These are bounded metadata suggestions. Review them before applying; no browser tabs move during this step.</p>
         {suggestion.workspaceProposals.slice(0, 6).map((proposal) => <p class="workspace-row" key={`${suggestion.suggestionId}-${proposal.name}`}>{proposal.name} · {proposal.recordIds.length} tabs · {Math.round(proposal.confidence * 100)}% confidence</p>)}
@@ -190,7 +188,7 @@ function App() {
         <button type="button" onClick={() => void applySuggestion(suggestion.suggestionId)}>Apply workspace suggestions</button>
         <button type="button" onClick={() => void rejectSuggestion(suggestion.suggestionId)}>Reject suggestion</button>
       </section>)}
-      <section id="workspaces" class="workspace-section" aria-labelledby="workspace-heading">
+      <section id="workspaces" hidden={view !== 'workspaces'} class="workspace-section" aria-labelledby="workspace-heading">
         <h2 id="workspace-heading">Local workspaces</h2>
         <form onSubmit={(event) => void createWorkspace(event)}>
           <label class="field">Create workspace<input value={workspaceName} onInput={(event) => setWorkspaceName((event.currentTarget as HTMLInputElement).value)} placeholder="e.g. Fictional project" /></label>
@@ -198,7 +196,7 @@ function App() {
         </form>
         {workspaces.filter((workspace) => !workspace.archivedAt).map((workspace) => <p class="workspace-row" key={workspace.workspaceId}>{workspace.name} <button type="button" onClick={() => void renameWorkspace(workspace)}>Rename</button> <button type="button" onClick={() => void archiveWorkspace(workspace)}>Archive workspace</button> <button type="button" onClick={() => void deleteWorkspace(workspace)}>Delete workspace</button></p>)}
       </section>
-      <section id="settings" class="workspace-section" aria-labelledby="privacy-heading">
+      <section id="settings" hidden={view !== 'settings'} class="workspace-section" aria-labelledby="privacy-heading">
         <h2 id="privacy-heading">Local data controls</h2>
         <p class="quiet">Metadata is local by default. Visible context is optional, bounded, and deletable. No private-window data is captured.</p>
         <details><summary>What is stored locally?</summary><p class="quiet">Tab metadata, workspace names, protection choices, operation recovery records, suggestions, corrections, and any user-confirmed visible headings/description. Browser history, cookies, credentials, and prior exports are outside this deletion control.</p></details>
