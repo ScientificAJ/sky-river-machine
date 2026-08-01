@@ -15,6 +15,8 @@ This documentation describes what we are going to build. It is an implementation
 - [Privacy and security](PRIVACY_SECURITY.md) — data boundaries, permissions, threat model, and deletion behavior.
 - [Product and interface design](DESIGN.md) — user flows, information architecture, visual language, accessibility, and automation controls.
 - [Testing and performance](TESTING_PERFORMANCE.md) — browser matrix, invariants, memory budgets, failure tests, and release gates.
+- [Performance evidence](PERFORMANCE.md) — reproducible pure-path scale calibration and its limits.
+- [Model evaluation](MODEL_EVALUATION.md) — pinned offline candidate, checksum, runtime result, and fallback decision.
 
 ## Decisions already made
 

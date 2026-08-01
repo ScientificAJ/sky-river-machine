@@ -9,12 +9,14 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "audit": "node scripts/audit-build.mjs",
+    "evaluate:model": "node scripts/evaluate-model.mjs",
     "check": "npm run typecheck && npm test && npm run build:chromium && npm run build:firefox && npm run audit"
   },
   "dependencies": {
     "preact": "^10.27.2"
   },
   "devDependencies": {
+    "@huggingface/transformers": "^4.2.0",
     "@preact/preset-vite": "^2.10.2",
     "typescript": "^5.9.2",
     "vite": "^7.1.3",
