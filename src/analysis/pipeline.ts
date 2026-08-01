@@ -9,10 +9,18 @@ import { BUDGETS } from '../shared/budgets';
 export async function suggestWithSafeFallback(records: TabRecord[], runner: ModelRunner = new UnavailableModelRunner(), workspaces: Workspace[] = [], corrections: UserCorrection[] = []): Promise<{ suggestion: SuggestionBatch; model: 'unavailable' | 'available' }> {
   const boundedRecords = [...records].sort((left, right) => Number(right.signals.active) - Number(left.signals.active) || right.updatedAt - left.updatedAt).slice(0, BUDGETS.maxModelRecords);
   const fallback = makeHeuristicSuggestion(boundedRecords, Date.now(), records, workspaces, corrections);
-  const request = { task: 'relateTabs' as const, schemaVersion: 1 as const, input: boundedRecords.map(({ recordId, title, url }) => ({ recordId, ...safeAnalysisInput(title, url) })), recordIds: boundedRecords.map((record) => record.recordId), revisions: boundedRecords.map((record) => record.revision), modelId: 'local-unavailable', modelVersion: 'none', artifactChecksum: 'none', strategyVersion: 'metadata-v1', timeBudgetMs: 1500 };
+  const request = { task: 'relateTabs' as const, schemaVersion: 1 as const, input: boundedRecords.map(({ recordId, title, url }) => ({ recordId, ...safeAnalysisInput(title, url) })), recordIds: boundedRecords.map((record) => record.recordId), revisions: boundedRecords.map((record) => record.revision), modelId: 'local-unavailable', modelVersion: 'none', artifactChecksum: 'none', strategyVersion: 'metadata-v1', timeBudgetMs: BUDGETS.modelTimeBudgetMs };
   if (!validateModelRequest(request)) return { suggestion: fallback, model: 'unavailable' };
   let response;
-  try { response = await runner.run(request); } catch { return { suggestion: fallback, model: 'unavailable' }; }
+  const controller = new AbortController();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    response = await Promise.race([
+      runner.run(request, controller.signal),
+      new Promise<never>((_, reject) => { timeout = setTimeout(() => { controller.abort(); reject(new Error('Local model time budget exceeded')); }, request.timeBudgetMs); }),
+    ]);
+  } catch { return { suggestion: fallback, model: 'unavailable' }; }
+  finally { if (timeout !== undefined) clearTimeout(timeout); }
   if (!response.ok) return { suggestion: fallback, model: 'unavailable' };
   const validated = validateSuggestionOutput(response.output, new Set(request.recordIds));
   if (!validated.ok || response.confidence < 0 || response.confidence > 1) return { suggestion: fallback, model: 'unavailable' };

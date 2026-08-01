@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { safeAnalysisInput } from '../src/analysis/normalize';
 import { suggestWithSafeFallback } from '../src/analysis/pipeline';
 import { validateModelRequest } from '../src/analysis/model';
@@ -73,4 +73,18 @@ test('duplicate scoring does not treat encoded data-page markup as duplicate con
   const left = { ...record, domain: 'data', title: 'Fictional browser setup', url: 'data:text/html,%3Ctitle%3EFictional%20browser%20setup%3C%2Ftitle%3E' };
   const right = { ...record, recordId: 'other', domain: 'data', title: 'Fictional payment form', url: 'data:text/html,%3Ctitle%3EFictional%20payment%20form%3C%2Ftitle%3E' };
   expect(duplicateScore(left, right)).toBeLessThan(0.9);
+});
+
+test('model time budget aborts a runner and keeps fallback available', async () => {
+  vi.useFakeTimers();
+  try {
+    const runner: ModelRunner = { run: async (_request, signal) => await new Promise((resolve) => signal?.addEventListener('abort', () => resolve({ ok: false, reason: 'timeout' as const }), { once: true })) };
+    const pending = suggestWithSafeFallback([record], runner);
+    await vi.advanceTimersByTimeAsync(1_500);
+    const result = await pending;
+    expect(result.model).toBe('unavailable');
+    expect(result.suggestion.status).toBe('pending');
+  } finally {
+    vi.useRealTimers();
+  }
 });
