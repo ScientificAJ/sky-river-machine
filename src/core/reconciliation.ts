@@ -56,14 +56,15 @@ export function reconcileTabs(
     const previous = byBrowserId.get(key);
     seen.add(key);
     if (!previous) return createRecord(tab, now, idFactory);
-    if (sameObservedData(previous, tab) && previous.state === 'Active') {
+    const nextState: TabRecord['state'] = previous.state === 'Dormant' && !tab.active ? 'Dormant' : 'Active';
+    if (sameObservedData(previous, tab) && previous.state === nextState) {
       return { ...previous, lastObservedAt: now };
     }
     return {
       ...previous,
       browserTabId: tab.browserTabId,
       windowId: tab.windowId,
-      state: 'Active' as const,
+      state: nextState,
       url: tab.url,
       title: tab.title,
       domain: tab.domain,

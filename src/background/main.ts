@@ -246,3 +246,4 @@ messageApi?.addListener((message, _sender, sendResponse) => {
 });
 
 adapter.observeTabEvents(() => { void refreshInventory(); });
+void refreshInventory();

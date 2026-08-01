@@ -30,3 +30,11 @@ test('missing live tabs become restorable Extinct records', () => {
 
   expect(second[0]).toMatchObject({ recordId: 'record-1', state: 'Extinct', browserTabId: null, windowId: null });
 });
+
+test('reconciliation preserves an explicit dormant state for a background tab', () => {
+  const existing = reconcileTabs([], [{ ...tab, active: false }], 1, () => 'stable');
+  const dormant = { ...existing[0]!, state: 'Dormant' as const, revision: 2 };
+  const next = reconcileTabs([dormant], [{ ...tab, active: false }], 3, () => 'new-id');
+  expect(next[0]?.state).toBe('Dormant');
+  expect(next[0]?.recordId).toBe('stable');
+});
