@@ -8,7 +8,7 @@ The local model artifact is also not bundled. `UnavailableModelRunner` is the ex
 
 Current local verification:
 
-- `npm test`: 11 focused tests pass across reconciliation, safety, model fallback, adapter normalization, shell, and scale fixtures.
+- `npm test`: 18 focused tests pass across reconciliation, safety, model fallback, adapter normalization, shell, queue backpressure, and scale fixtures.
 - `npm run typecheck`: passes.
 - `npm run build:chromium`: passes.
 - `npm run build:firefox`: passes.
