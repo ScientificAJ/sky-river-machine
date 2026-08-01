@@ -33,6 +33,12 @@ test('missing live tabs become restorable Extinct records', () => {
   expect(second[0]).toMatchObject({ recordId: 'record-1', state: 'Extinct', browserTabId: null, windowId: null });
 });
 
+test('reconciliation retains already-extinct records across later refreshes', () => {
+  const first = reconcileTabs([], [tab], 100, () => 'record-extinct');
+  const extinct = reconcileTabs(first, [], 200);
+  expect(reconcileTabs(extinct, [], 300)).toEqual(extinct);
+});
+
 test('reconciliation preserves an explicit dormant state for a background tab', () => {
   const existing = reconcileTabs([], [{ ...tab, active: false }], 1, () => 'stable');
   const dormant = { ...existing[0]!, state: 'Dormant' as const, revision: 2 };
@@ -74,4 +80,14 @@ test('recovery refuses to call a stale wake operation successful', () => {
     after: { state: 'Active' }, browserPlan: { action: 'activate', tabIds: [7] }, status: 'applying', error: null, createdAt: 1, completedAt: null,
   };
   expect(recoverOperation(operation, existing, [{ ...tab, active: false }])).toMatchObject({ status: 'failed' });
+});
+
+test('recovery confirms a Dormant fallback when native discard is unavailable', () => {
+  const existing = reconcileTabs([], [{ ...tab, active: false }], 1, () => 'stable');
+  const operation: Operation = {
+    operationId: 'operation-fallback', kind: 'lifecycle', targetRecordIds: ['stable'],
+    before: [{ recordId: 'stable', browserTabId: 7, windowId: 3, state: 'Active', url: tab.url, workspaceId: null, protection: existing[0]!.protection }],
+    after: { state: 'Dormant' }, browserPlan: { action: 'none', tabIds: [] }, status: 'applying', error: null, createdAt: 1, completedAt: null,
+  };
+  expect(recoverOperation(operation, [{ ...existing[0]!, state: 'Dormant' }], [tab])).toEqual({ status: 'applied', error: null });
 });

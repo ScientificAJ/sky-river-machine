@@ -5,6 +5,8 @@ import { validateModelRequest } from '../src/analysis/model';
 import type { ModelRunner } from '../src/analysis/model';
 import type { TabRecord } from '../src/shared/types';
 import { syntheticRecords } from '../src/core/fixtures';
+import { makeHeuristicSuggestion } from '../src/analysis/suggestions';
+import { duplicateScore } from '../src/analysis/heuristics';
 
 const record: TabRecord = {
   recordId: 'fictional-record', browserTabId: 7, windowId: 3, workspaceId: null, state: 'Active',
@@ -56,4 +58,19 @@ test('heuristic fallback bounds analysis work for a large archive', async () => 
 test('model request validation bounds input and aligned revisions', () => {
   expect(validateModelRequest({ task: 'relateTabs', schemaVersion: 1, input: { text: 'fictional' }, recordIds: ['one'], revisions: [1], modelId: 'fictional', modelVersion: '1', artifactChecksum: 'sum', strategyVersion: '1', timeBudgetMs: 100 })).toBe(true);
   expect(validateModelRequest({ task: 'relateTabs', schemaVersion: 1, input: 'x'.repeat(20_001), recordIds: ['one'], revisions: [], modelId: 'fictional', modelVersion: '1', artifactChecksum: 'sum', strategyVersion: '1', timeBudgetMs: 100 })).toBe(false);
+});
+
+test('heuristic suggestions reuse explicit workspace correction signals', () => {
+  const records = [
+    { ...record, recordId: 'one', domain: 'example.com', title: 'Fictional browser setup' },
+    { ...record, recordId: 'two', domain: 'example.org', title: 'Fictional browser guide' },
+  ];
+  const suggestion = makeHeuristicSuggestion(records, 2, records, [{ workspaceId: 'fictional-workspace', name: 'Fictional project', color: 'river', createdAt: 1, updatedAt: 1, archivedAt: null }], [{ correctionId: 'correction', kind: 'movedTab', recordIds: ['one'], features: ['workspace:fictional-workspace', 'domain:example.com', 'token:browser'], createdAt: 1 }]);
+  expect(suggestion.workspaceProposals[0]?.name).toBe('Fictional project');
+});
+
+test('duplicate scoring does not treat encoded data-page markup as duplicate content', () => {
+  const left = { ...record, domain: 'data', title: 'Fictional browser setup', url: 'data:text/html,%3Ctitle%3EFictional%20browser%20setup%3C%2Ftitle%3E' };
+  const right = { ...record, recordId: 'other', domain: 'data', title: 'Fictional payment form', url: 'data:text/html,%3Ctitle%3EFictional%20payment%20form%3C%2Ftitle%3E' };
+  expect(duplicateScore(left, right)).toBeLessThan(0.9);
 });

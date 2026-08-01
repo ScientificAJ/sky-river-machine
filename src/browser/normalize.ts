@@ -1,10 +1,11 @@
 import type { NormalizedTab } from '../shared/types';
 import type { RawTab } from './raw';
 
-export function normalizeTab(tab: RawTab): NormalizedTab | null {
-  if (tab.id === undefined || tab.windowId === undefined || tab.incognito || tab.windowType !== 'normal') return null;
+export function normalizeTab(tab: RawTab, assumeNormalWindow = false): NormalizedTab | null {
+  if (tab.id === undefined || tab.windowId === undefined || tab.incognito || (tab.windowType !== 'normal' && !(assumeNormalWindow && tab.windowType === undefined))) return null;
 
   const url = tab.url?.trim() || 'about:blank';
+  if (/^(chrome|moz)-extension:\/\//i.test(url)) return null;
   let domain = 'local';
   try {
     const parsed = new URL(url);

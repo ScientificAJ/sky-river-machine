@@ -9,8 +9,9 @@ export function overlap(left: string[], right: string[]): number {
 
 export function duplicateScore(left: TabRecord, right: TabRecord): number {
   if (left.url === right.url) return 1;
-  if (left.domain !== right.domain) return overlap(tokenize(left.title), tokenize(right.title)) * 0.5;
-  return overlap(tokenize(`${left.title} ${left.url}`), tokenize(`${right.title} ${right.url}`));
+  const titleOverlap = overlap(tokenize(left.title), tokenize(right.title));
+  if (left.domain !== right.domain) return titleOverlap * 0.5;
+  return titleOverlap;
 }
 
 export function relatedScore(left: TabRecord, right: TabRecord): number {

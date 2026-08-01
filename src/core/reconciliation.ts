@@ -85,8 +85,10 @@ export function reconcileTabs(
 
   for (const record of existing) {
     const key = `${record.windowId}:${record.browserTabId}`;
-    if (!seen.has(key) && record.state !== 'Extinct') {
-      records.push({ ...record, browserTabId: null, windowId: null, state: 'Extinct', updatedAt: now, lastObservedAt: now, revision: record.revision + 1 });
+    if (!seen.has(key)) {
+      records.push(record.state === 'Extinct'
+        ? record
+        : { ...record, browserTabId: null, windowId: null, state: 'Extinct', updatedAt: now, lastObservedAt: now, revision: record.revision + 1 });
     }
   }
   return records;

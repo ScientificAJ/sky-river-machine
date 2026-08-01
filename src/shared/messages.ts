@@ -1,7 +1,7 @@
 import type { InventoryMessage } from './types';
 
 const TYPES = new Set<InventoryMessage['type']>([
-  'refresh-inventory', 'search-metadata', 'list-workspaces', 'create-workspace', 'rename-workspace', 'archive-workspace', 'delete-workspace', 'move-record', 'set-protection', 'lifecycle', 'undo-operation', 'delete-record', 'get-recovery', 'get-suggestions', 'organize-heuristically', 'review-suggestion', 'apply-suggestion', 'reject-suggestion', 'extract-visible-context', 'delete-all', 'export-data',
+  'refresh-inventory', 'search-metadata', 'list-workspaces', 'create-workspace', 'rename-workspace', 'archive-workspace', 'delete-workspace', 'move-record', 'set-protection', 'lifecycle', 'undo-operation', 'delete-record', 'get-recovery', 'get-suggestions', 'organize-heuristically', 'review-suggestion', 'apply-suggestion', 'reject-suggestion', 'duplicate-decision', 'extract-visible-context', 'delete-all', 'export-data',
 ]);
 
 const id = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 128;
@@ -41,6 +41,8 @@ export function parseInventoryMessage(input: unknown): InventoryMessage | null {
       return keysOnly(value, ['type', 'operationId']) && id(value.operationId) ? value as InventoryMessage : null;
     case 'apply-suggestion': case 'reject-suggestion':
       return keysOnly(value, ['type', 'suggestionId']) && id(value.suggestionId) ? value as InventoryMessage : null;
+    case 'duplicate-decision':
+      return keysOnly(value, ['type', 'suggestionId', 'recordIds', 'decision', 'confirm']) && id(value.suggestionId) && Array.isArray(value.recordIds) && value.recordIds.length >= 1 && value.recordIds.length <= 2 && value.recordIds.every(id) && ['keep', 'archive', 'dismiss'].includes(String(value.decision)) && (value.confirm === undefined || bool(value.confirm)) ? value as InventoryMessage : null;
     case 'review-suggestion': {
       if (!keysOnly(value, ['type', 'suggestionId', 'workspaceProposals']) || !id(value.suggestionId) || !Array.isArray(value.workspaceProposals) || value.workspaceProposals.length > 24) return null;
       const proposals = value.workspaceProposals;

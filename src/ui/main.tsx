@@ -21,8 +21,10 @@ function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [query, setQuery] = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<SuggestionBatch[]>([]);
   const [drafts, setDrafts] = useState<Record<string, SuggestionDraft[]>>({});
+  const [duplicateSelections, setDuplicateSelections] = useState<Record<string, string[]>>({});
   const [recovery, setRecovery] = useState<Operation[]>([]);
   const [lastOperation, setLastOperation] = useState<Operation | null>(null);
   const [view, setView] = useState<'home' | 'search' | 'workspaces' | 'recovery' | 'settings'>('home');
@@ -166,6 +168,18 @@ function App() {
     if (response.ok && 'suggestions' in response) setSuggestions((current) => current.map((item) => response.suggestions.find((next) => next.suggestionId === item.suggestionId) ?? item));
   };
 
+  const decideDuplicate = async (suggestion: SuggestionBatch, candidateIndex: number, decision: 'keep' | 'archive' | 'dismiss') => {
+    const candidate = suggestion.duplicateCandidates[candidateIndex];
+    if (!candidate) return;
+    const key = `${suggestion.suggestionId}:${candidateIndex}`;
+    const recordIds = decision === 'archive' ? (duplicateSelections[key] ?? candidate.recordIds) : candidate.recordIds;
+    if (decision === 'archive' && !recordIds.length) { window.alert('Select at least one tab to archive.'); return; }
+    if (decision === 'archive' && !window.confirm('Archive the selected duplicate records? They remain restorable.')) return;
+    const response = await sendMessage({ type: 'duplicate-decision', suggestionId: suggestion.suggestionId, recordIds, decision, ...(decision === 'archive' ? { confirm: true } : {}) });
+    if (!response.ok) window.alert(response.error);
+    await load();
+  };
+
   const undo = async (operationId: string) => {
     const response = await sendMessage({ type: 'undo-operation', operationId });
     if (!response.ok) window.alert(response.error);
@@ -251,7 +265,11 @@ function App() {
             <p class="quiet">{proposal.recordIds.length} assigned tab{proposal.recordIds.length === 1 ? '' : 's'} · {Math.round((suggestion.workspaceProposals[proposalIndex]?.confidence ?? 0.5) * 100)}% confidence</p>
             <div class="proposal-records">{recordIds.map((recordId) => { const record = records.find((item) => item.recordId === recordId); return <label key={recordId}><input type="checkbox" checked={proposal.recordIds.includes(recordId)} onChange={() => toggleDraftRecord(suggestion, proposalIndex, recordId)} /> {record?.title ?? recordId}</label>; })}</div>
           </div>)}
-          {suggestion.duplicateCandidates.length > 0 && <p class="quiet">Possible duplicates: {suggestion.duplicateCandidates.length}. Nothing will close automatically.</p>}
+          {suggestion.duplicateCandidates.length > 0 && <div class="duplicate-review"><p class="quiet">Possible duplicates: {suggestion.duplicateCandidates.length}. Nothing closes automatically.</p>{suggestion.duplicateCandidates.map((candidate, candidateIndex) => {
+            const key = `${suggestion.suggestionId}:${candidateIndex}`;
+            const selected = duplicateSelections[key] ?? candidate.recordIds;
+            return <div class="duplicate-row" key={`${key}-${candidate.recordIds.join('-')}`}><p>{candidate.recordIds.map((recordId) => records.find((record) => record.recordId === recordId)?.title ?? recordId).join(' · ')}</p><div>{candidate.recordIds.map((recordId) => <label key={recordId}><input type="checkbox" checked={selected.includes(recordId)} onChange={() => setDuplicateSelections((current) => ({ ...current, [key]: selected.includes(recordId) ? selected.filter((id) => id !== recordId) : [...selected, recordId] }))} /> Keep available</label>)}</div><button type="button" onClick={() => void decideDuplicate(suggestion, candidateIndex, 'keep')}>Keep both</button><button type="button" onClick={() => void decideDuplicate(suggestion, candidateIndex, 'dismiss')}>Dismiss</button><button type="button" onClick={() => void decideDuplicate(suggestion, candidateIndex, 'archive')}>Archive selected</button></div>;
+          })}</div>}
           <button type="button" onClick={() => updateDraft(suggestion, (current) => [...current, { name: `Suggested workspace ${current.length + 1}`, recordIds: [] }])}>Split into another workspace</button>
           <button type="button" onClick={() => void saveSuggestionDraft(suggestion)}>Save review</button>
           <button type="button" onClick={() => void applySuggestion(suggestion.suggestionId)}>Apply workspace suggestions</button>
@@ -264,7 +282,10 @@ function App() {
           <label class="field">Create workspace<input value={workspaceName} onInput={(event) => setWorkspaceName((event.currentTarget as HTMLInputElement).value)} placeholder="e.g. Fictional project" /></label>
           <button type="submit">Create workspace</button>
         </form>
-        {workspaces.filter((workspace) => !workspace.archivedAt).map((workspace) => <p class="workspace-row" key={workspace.workspaceId}>{workspace.name} <button type="button" onClick={() => void renameWorkspace(workspace)}>Rename</button> <button type="button" onClick={() => void archiveWorkspace(workspace)}>Archive workspace</button> <button type="button" onClick={() => void deleteWorkspace(workspace)}>Delete workspace</button></p>)}
+        {workspaces.filter((workspace) => !workspace.archivedAt).map((workspace) => {
+          const assigned = records.filter((record) => record.workspaceId === workspace.workspaceId);
+          return <article class="workspace-card" key={workspace.workspaceId} aria-labelledby={`workspace-${workspace.workspaceId}`}><h3 id={`workspace-${workspace.workspaceId}`}>{workspace.name}</h3><p class="quiet">{assigned.length} visible record{assigned.length === 1 ? '' : 's'} · {assigned.filter((record) => record.state === 'Active').length} Active · {assigned.filter((record) => record.state === 'Dormant').length} Dormant · {assigned.filter((record) => record.state === 'Extinct').length} Extinct</p><button type="button" onClick={() => { setSelectedWorkspaceId(workspace.workspaceId); setQuery(workspace.name); setView('search'); }}>Open workspace</button><button type="button" onClick={() => void renameWorkspace(workspace)}>Rename</button><button type="button" onClick={() => void archiveWorkspace(workspace)}>Archive workspace</button><button type="button" onClick={() => void deleteWorkspace(workspace)}>Delete workspace</button>{selectedWorkspaceId === workspace.workspaceId && <p class="quiet" role="status">Workspace filter is active in Search.</p>}</article>;
+        })}
       </section>
       <section id="settings" hidden={view !== 'settings'} class="workspace-section" aria-labelledby="privacy-heading">
         <h2 id="privacy-heading">Local data controls</h2>

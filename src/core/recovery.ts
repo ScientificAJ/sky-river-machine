@@ -62,5 +62,10 @@ export function recoverOperation(operation: Operation, records: TabRecord[], tab
       ? { status: 'applied', error: null }
       : { status: 'failed', error: 'The restore operation was not confirmed after restart.' };
   }
+  if (operation.browserPlan.action === 'none') {
+    return record && operation.after.state && record.state === operation.after.state
+      ? { status: 'applied', error: null }
+      : { status: 'failed', error: 'The lifecycle fallback was not confirmed after restart.' };
+  }
   return { status: 'failed', error: 'The pending operation could not be classified safely after restart.' };
 }

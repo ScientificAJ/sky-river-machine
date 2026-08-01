@@ -35,7 +35,11 @@ export function createChromiumAdapter(): BrowserAdapter {
     async activateTab(tabId) { return normalizeTab(await browser.tabs.update(tabId, { active: true }))!; },
     async createTab(url) { return normalizeTab(await browser.tabs.create({ url }))!; },
     async closeTab(tabId) { await browser.tabs.remove(tabId); },
-    async discardTab(tabId) { return browser.tabs.discard ? normalizeTab(await browser.tabs.discard(tabId)) : null; },
+    async discardTab(tabId) {
+      if (!browser.tabs.discard) return null;
+      const discarded = await browser.tabs.discard(tabId);
+      return discarded ? normalizeTab(discarded) : null;
+    },
     async extractVisibleContext(tabId) {
       if (!browser.scripting) throw new Error('Visible page context is unavailable');
       const [result] = await browser.scripting.executeScript({ target: { tabId }, func: () => ({ headings: [...document.querySelectorAll('h1,h2')].map((node) => (node.textContent || '').trim()).filter(Boolean).slice(0, 8), description: (document.querySelector('meta[name="description"]')?.getAttribute('content') || '').trim().slice(0, 500) }) });

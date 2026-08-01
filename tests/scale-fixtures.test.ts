@@ -13,3 +13,8 @@ test.each([12, 100, 1000, 10000])('synthetic fixture stays deterministic and sea
   expect(reconcileTabs(records, normalized, 2)).toHaveLength(count);
   if (count === 10_000) expect(performance.now() - started).toBeLessThan(500);
 });
+
+test('search ranks remembered visible context when the exact title is unknown', () => {
+  const records = syntheticRecords(2).map((record, index) => index === 0 ? { ...record, title: 'Untitled page', context: { level: 'visible' as const, headings: ['Fictional browser sleeping guide'], description: 'Reference notes for preserving tabs', storedAt: 1 } } : record);
+  expect(searchMetadata(records, [], 'browser sleeping guide')[0]?.recordId).toBe('synthetic-0');
+});

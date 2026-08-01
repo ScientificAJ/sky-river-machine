@@ -19,7 +19,7 @@ export type RawTabsApi = {
   update(tabId: number, properties: { active?: boolean }): Promise<RawTab>;
   create(properties: { url: string }): Promise<RawTab>;
   remove(tabId: number): Promise<void>;
-  discard?(tabId: number): Promise<RawTab>;
+  discard?(tabId: number): Promise<RawTab | void>;
   executeScript?(tabId: number, details: { code: string }): Promise<Array<{ result?: unknown }> >;
   onCreated?: { addListener(listener: (tab: RawTab) => void): void };
   onUpdated?: { addListener(listener: (tabId: number, changeInfo: unknown, tab: RawTab) => void): void };

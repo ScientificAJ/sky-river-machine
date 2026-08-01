@@ -115,6 +115,7 @@ export type InventoryMessage =
   | { type: 'review-suggestion'; suggestionId: string; workspaceProposals: Array<{ name: string; recordIds: string[] }> }
   | { type: 'apply-suggestion'; suggestionId: string }
   | { type: 'reject-suggestion'; suggestionId: string }
+  | { type: 'duplicate-decision'; suggestionId: string; recordIds: string[]; decision: 'keep' | 'archive' | 'dismiss'; confirm?: boolean }
   | { type: 'extract-visible-context'; recordId: string; confirm: boolean }
   | { type: 'delete-all'; confirm: boolean }
   | { type: 'export-data' };

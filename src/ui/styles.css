@@ -57,6 +57,8 @@ h1 { font-size: clamp(2rem, 8vw, 4.5rem); line-height: .98; }
 .field { display: grid; gap: .35rem; color: var(--ink-muted); font-size: .875rem; font-weight: 700; }
 .field input, .field select { min-width: min(100%, 20rem); min-height: 44px; border: 1px solid var(--border); border-radius: .5rem; padding: .7rem; color: inherit; background: var(--surface); font: inherit; }
 .workspace-row { margin: 0; padding: .5rem .75rem; border-left: 3px solid var(--river); }
+.workspace-card { display: grid; gap: .5rem; border: 1px solid var(--border); border-radius: .65rem; padding: .75rem; }
+.workspace-card h3 { margin: 0; font-size: .95rem; }
 .suggestion { display: grid; gap: .75rem; border: 1px solid #d99d69; border-radius: .65rem; padding: 1rem; }
 .suggestion h2 { margin: 0; font-size: 1rem; }
 .proposal-editor { display: grid; gap: .5rem; border-top: 1px solid var(--border); padding-top: .75rem; }

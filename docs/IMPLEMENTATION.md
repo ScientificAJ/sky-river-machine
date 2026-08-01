@@ -4,7 +4,7 @@ This file records observed implementation state. The design and plan documents r
 
 ## Current implementation
 
-Status: the buildable shell, local inventory, workspace/search, protection, and refresh serialization slices exist. Real-browser page-opening verification remains incomplete in the managed desktop environment, so neither browser is called supported.
+Status: the buildable shell, local inventory, workspace/search, protection, refresh serialization, and Firefox smoke slices exist. Chromium page-opening verification remains incomplete in the managed desktop environment, so neither browser is called supported.
 
 Implemented locally:
 
@@ -19,8 +19,9 @@ Implemented locally:
 - manual workspace/protection changes are journaled; deleting a record prunes its suggestion and correction references; pinned and loading tabs are protected from lifecycle mutation.
 - Permanent record deletion journals no reversible URL snapshot, and startup recovery scrubs any legacy delete snapshot before retaining its outcome.
 - heuristic proposal review supports bounded rename, reassignment, split/merge-by-assignment, reject, and leave-unchanged decisions before local application.
+- token- and stored-context-ranked local search, correction-informed heuristic naming, and explicit duplicate keep/dismiss/archive review are implemented; extension-owned pages stay out of the inventory.
 
-Focused automated tests are part of implementation verification. `npm run evaluate:model` records candidate model gates separately; q4f16 fails before inference and q8 runs but fails the structured-output and latency probes, so neither is bundled. Real-browser smoke testing remains deferred by the project owner; a passing focused test suite does not establish browser support.
+Focused automated tests are part of implementation verification. `npm run evaluate:model` records candidate model gates separately; q4f16 fails before inference and q8 runs but fails the structured-output and latency probes, so neither is bundled. Firefox 153 smoke is recorded below; a passing focused suite or one browser smoke run does not establish cross-browser support.
 
 Build commands:
 
@@ -46,6 +47,7 @@ Permission record:
 Observed smoke notes:
 
 - Chrome 145.0.7632.75 is installed, but the managed Chrome runner loaded its preloaded extension set and did not expose this unpacked build as a target, so page-opening verification is blocked by the environment.
+- Firefox 153.0 installed the packaged XPI in an isolated profile. The smoke flow verified normal-tab inventory, extension-page exclusion, protection refusal, Dormant/native discard, archive/search, restore, undo, and extension-reload persistence using fictional example URLs. Full browser restart, private-window, sidebar, and explicit permission-denial gates remain open.
 - A separate isolated Chrome 145 profile did not expose the unpacked build because developer-mode extension loading is managed. The observed `fignfifoniblkonapihmkfakmlgkbkcf` service worker was verified through `chrome.runtime.getManifest()` as the preloaded Google Network Speech extension, not Sky River Machine; navigating its unrelated `extension.html` returned `ERR_FILE_NOT_FOUND`. This is recorded as an environment blocker, not as extension support or a product-page failure.
-- Firefox 153.0 accepted the packaged build as a temporary extension through WebDriver. The first run exposed a real manifest bug (the ES-module background was loaded as classic script); adding Firefox `background.type: "module"` removed that startup syntax error. The available WebDriver navigation endpoint still rejects direct `moz-extension://` navigation, so page-opening and reload assertions remain pending.
+- Firefox 153.0 accepted the packaged build as a temporary extension through WebDriver. The first run exposed a real manifest bug (the ES-module background was loaded as classic script); adding Firefox `background.type: "module"` removed that startup syntax error. The classic direct-navigation endpoint rejects `moz-extension://` URLs, so the smoke used the available WebDriver BiDi/chrome-context route to open and exercise the page.
 - No cross-browser support claim is made from these partial observations.

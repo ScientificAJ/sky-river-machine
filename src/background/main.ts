@@ -99,7 +99,7 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
   }
   if (message.type === 'organize-heuristically') {
     const records = await store.list();
-    const { suggestion } = await suggestWithSafeFallback(records.filter((record) => record.state !== 'Extinct'));
+    const { suggestion } = await suggestWithSafeFallback(records.filter((record) => record.state !== 'Extinct'), undefined, await store.listWorkspaces(), await store.listCorrections());
     await store.putSuggestion(suggestion);
     return { ok: true, suggestions: [suggestion] };
   }
@@ -128,6 +128,24 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
     await store.updateSuggestion(rejected);
     await store.putCorrection({ correctionId: crypto.randomUUID(), kind: 'rejectedSuggestion', recordIds: suggestion.workspaceProposals.flatMap((proposal) => proposal.recordIds), features: ['suggestion-rejected'], createdAt: Date.now() });
     return { ok: true, suggestions: [rejected] };
+  }
+  if (message.type === 'duplicate-decision') {
+    const suggestion = await store.getSuggestion(message.suggestionId);
+    if (!suggestion || suggestion.status !== 'pending') return { ok: false, error: 'That suggestion is no longer available.' };
+    const candidate = suggestion.duplicateCandidates.find((item) => item.recordIds.length === 2 && (message.decision === 'archive' ? message.recordIds.every((recordId) => item.recordIds.includes(recordId)) : item.recordIds.every((recordId) => message.recordIds.includes(recordId))));
+    if (!candidate) return { ok: false, error: 'That duplicate candidate is no longer available.' };
+    if (message.decision === 'archive' && message.confirm !== true) return { ok: false, error: 'Archiving a duplicate requires explicit confirmation.' };
+    if (message.decision === 'archive') {
+      for (const recordId of message.recordIds) {
+        const response = await handleMessage({ type: 'lifecycle', recordId, action: 'archive', confirm: true });
+        if (!response.ok) return { ok: false, error: response.error };
+      }
+    }
+    const remaining = suggestion.duplicateCandidates.filter((item) => item !== candidate);
+    const updated = { ...suggestion, duplicateCandidates: remaining, status: remaining.length || suggestion.workspaceProposals.length ? suggestion.status : 'accepted' as const };
+    await store.updateSuggestion(updated);
+    await store.putCorrection({ correctionId: crypto.randomUUID(), kind: 'duplicateDecision', recordIds: message.recordIds, features: [`decision:${message.decision}`], createdAt: Date.now() });
+    return { ok: true, suggestions: [updated] };
   }
   if (message.type === 'apply-suggestion') {
     const suggestion = await store.getSuggestion(message.suggestionId);
@@ -158,6 +176,7 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
   if (message.type === 'move-record') {
     const record = await store.get(message.recordId);
     if (!record) return { ok: false, error: 'That tab record is no longer available.' };
+    if (message.workspaceId !== null && !(await store.listWorkspaces()).some((workspace) => workspace.workspaceId === message.workspaceId && !workspace.archivedAt)) return { ok: false, error: 'That workspace is no longer available.' };
     const nextOperation = planOperation('organize', record, 'none', { workspaceId: message.workspaceId }, Date.now());
     await store.putOperation(nextOperation);
     try {
@@ -167,7 +186,7 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
       await store.putOperation({ ...nextOperation, status: 'failed', error: 'The workspace move was not saved.', completedAt: Date.now() });
       return { ok: false, error: 'The workspace move was not saved.' };
     }
-    await store.putCorrection({ correctionId: crypto.randomUUID(), kind: 'movedTab', recordIds: [message.recordId], features: [message.workspaceId ?? 'unassigned'] , createdAt: Date.now() });
+    await store.putCorrection({ correctionId: crypto.randomUUID(), kind: 'movedTab', recordIds: [message.recordId], features: [`workspace:${message.workspaceId ?? 'unassigned'}`, `domain:${record.domain}`, ...record.title.toLocaleLowerCase().split(/[^\p{L}\p{N}]+/u).filter((token) => token.length > 1).slice(0, 12).map((token) => `token:${token}`)], createdAt: Date.now() });
     return await refreshInventory();
   }
   if (message.type === 'set-protection') {
@@ -208,7 +227,7 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
     for (const before of operation.before) {
       const record = await store.get(before.recordId);
       if (!record) return { ok: false, error: 'The original tab record is no longer available.' };
-      if (before.state === 'Extinct' && record.state !== 'Extinct') return { ok: false, error: 'The current tab state changed; review recovery before undoing.' };
+      if (operation.after.state && record.state !== operation.after.state) return { ok: false, error: 'The current tab state changed; review recovery before undoing.' };
       if (operation.kind === 'restore' && before.state === 'Extinct' && record.browserTabId !== null) {
         const live = await adapter.getTab(record.browserTabId).catch(() => null);
         if (!live || live.url !== record.url) return { ok: false, error: 'The restored tab changed before undo; review recovery first.' };
