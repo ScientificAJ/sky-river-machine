@@ -61,6 +61,8 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
     const record = await store.get(message.recordId);
     if (!record || record.browserTabId === null) return { ok: false, error: 'That record has no live tab to inspect.' };
     try {
+      const live = await adapter.getTab(record.browserTabId);
+      if (!live || live.windowId !== record.windowId || !live.active) return { ok: false, error: 'Select this tab first. Visible context is available only for the current tab.' };
       const extracted = await adapter.extractVisibleContext(record.browserTabId);
       const context = { level: 'visible' as const, ...extracted, storedAt: Date.now() };
       const updated = await store.updateRecordContext(record.recordId, context);

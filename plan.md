@@ -1,6 +1,6 @@
 # Sky River Machine implementation plan
 
-> Status: implementation roadmap. The repository now contains a local development implementation across the planned foundation, lifecycle, analysis, privacy, UI, and bounded-processing layers. Browser smoke/release evidence remains separately recorded in [`docs/RELEASE_STATUS.md`](docs/RELEASE_STATUS.md); no browser support claim is implied here.
+> Status: implementation roadmap. The repository now contains local slices through the foundation, lifecycle, bounded analysis fallback, privacy controls, UI surfaces, and synthetic scale fixtures. Real-browser smoke, measured release performance/fault injection, and qualifying local-model artifact evidence remain separately recorded in [`docs/RELEASE_STATUS.md`](docs/RELEASE_STATUS.md); no browser support or release claim is implied here.
 
 ## 1. What this plan is for
 
