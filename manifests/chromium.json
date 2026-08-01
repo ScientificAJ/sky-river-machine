@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Sky River Machine",
+  "version": "0.0.0",
+  "description": "A local development shell for a recoverable browser workspace.",
+  "permissions": ["tabs"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Open Sky River Machine",
+    "default_popup": "extension.html"
+  }
+}
