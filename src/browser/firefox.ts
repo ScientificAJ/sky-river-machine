@@ -30,7 +30,7 @@ export function createFirefoxAdapter(): BrowserAdapter {
       browser.tabs.onActivated?.addListener(({ tabId }) => listener({ kind: 'activated', browserTabId: tabId }));
       browser.tabs.onRemoved?.addListener((tabId) => listener({ kind: 'removed', browserTabId: tabId }));
     },
-    getCapabilities: () => ({ queryTabs: true, observeTabEvents: true, activateTab: true, createTab: true, closeTab: true, nativeDiscard: Boolean(browser.tabs.discard) }),
+    getCapabilities: () => ({ queryTabs: true, observeTabEvents: true, activateTab: true, createTab: true, closeTab: true, nativeDiscard: Boolean(browser.tabs.discard), visibleContext: Boolean(browser.tabs.executeScript) }),
     async getTab(tabId) { return normalizeTab(await browser.tabs.get(tabId)); },
     async activateTab(tabId) { return normalizeTab(await browser.tabs.update(tabId, { active: true }))!; },
     async createTab(url) { return normalizeTab(await browser.tabs.create({ url }))!; },

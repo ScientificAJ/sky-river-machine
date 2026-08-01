@@ -27,6 +27,10 @@ export type RawTabsApi = {
   onRemoved?: { addListener(listener: (tabId: number, info: { windowId: number }) => void): void };
 };
 
+export type RawScriptingApi = {
+  executeScript(details: { target: { tabId: number }; func: () => unknown }): Promise<Array<{ result?: unknown }> >;
+};
+
 export type RawRuntimeApi = {
   sendMessage(message: unknown): Promise<unknown>;
   onMessage?: {
@@ -38,5 +42,6 @@ export type RawRuntimeApi = {
 
 export type RawBrowserApi = {
   tabs: RawTabsApi;
+  scripting?: RawScriptingApi;
   runtime: RawRuntimeApi;
 };

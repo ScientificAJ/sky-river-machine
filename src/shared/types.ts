@@ -77,6 +77,7 @@ export type SuggestionBatch = {
   uncertainRecords: string[];
   status: 'pending' | 'accepted' | 'rejected' | 'partiallyApplied' | 'expired';
   createdAt: number;
+  analysis?: { modelId: string; modelVersion: string; artifactChecksum: string; strategyVersion: string; confidence: number };
 };
 
 export type UserCorrection = {
@@ -102,7 +103,7 @@ export type InventoryMessage =
   | { type: 'rename-workspace'; workspaceId: string; name: string }
   | { type: 'archive-workspace'; workspaceId: string }
   | { type: 'move-record'; recordId: string; workspaceId: string | null }
-  | { type: 'set-protection'; recordId: string; important: boolean }
+  | { type: 'set-protection'; recordId: string; important?: boolean; neverSleep?: boolean; keepUntilCompleted?: boolean }
   | { type: 'lifecycle'; recordId: string; action: 'wake' | 'rest' | 'archive' | 'restore'; confirm?: boolean }
   | { type: 'undo-operation'; operationId: string }
   | { type: 'delete-record'; recordId: string; confirm: boolean }

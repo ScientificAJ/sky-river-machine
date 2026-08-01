@@ -5,7 +5,7 @@ import { IndexedDbTabStore } from '../storage/database';
 import type { RawRuntimeApi } from '../browser/raw';
 import { canMutateTab } from '../core/lifecycle';
 import { planOperation } from '../core/operations';
-import { makeHeuristicSuggestion } from '../analysis/suggestions';
+import { suggestWithSafeFallback } from '../analysis/pipeline';
 
 const adapter = createBrowserAdapter();
 const store = new IndexedDbTabStore();
@@ -71,7 +71,7 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
   }
   if (message.type === 'organize-heuristically') {
     const records = await store.list();
-    const suggestion = makeHeuristicSuggestion(records.filter((record) => record.state !== 'Extinct'), Date.now());
+    const { suggestion } = await suggestWithSafeFallback(records.filter((record) => record.state !== 'Extinct'));
     await store.putSuggestion(suggestion);
     return { ok: true, suggestions: [suggestion] };
   }
@@ -80,6 +80,7 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
     if (!suggestion) return { ok: false, error: 'That suggestion is no longer available.' };
     const rejected = { ...suggestion, status: 'rejected' as const };
     await store.updateSuggestion(rejected);
+    await store.putCorrection({ correctionId: crypto.randomUUID(), kind: 'rejectedSuggestion', recordIds: suggestion.workspaceProposals.flatMap((proposal) => proposal.recordIds), features: ['suggestion-rejected'], createdAt: Date.now() });
     return { ok: true, suggestions: [rejected] };
   }
   if (message.type === 'apply-suggestion') {
@@ -97,21 +98,26 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
     await store.putOperation(operation);
     const workspaces = await store.listWorkspaces();
     for (const proposal of suggestion.workspaceProposals) {
-      const workspace: Workspace = { workspaceId: crypto.randomUUID(), name: proposal.name.slice(0, 80), color: 'river', createdAt: Date.now(), updatedAt: Date.now(), archivedAt: null };
-      await store.putWorkspace(workspace);
+      const workspace = workspaces.find((item) => !item.archivedAt && item.name === proposal.name) ?? { workspaceId: crypto.randomUUID(), name: proposal.name.slice(0, 80), color: 'river', createdAt: Date.now(), updatedAt: Date.now(), archivedAt: null } satisfies Workspace;
+      await store.putWorkspace({ ...workspace, updatedAt: Date.now() });
       for (const recordId of proposal.recordIds) await store.updateRecordWorkspace(recordId, workspace.workspaceId);
     }
     const applied = { ...operation, status: 'applied' as const, completedAt: Date.now() };
     await store.putOperation(applied);
     await store.updateSuggestion({ ...suggestion, status: 'accepted' });
+    await store.putCorrection({ correctionId: crypto.randomUUID(), kind: 'movedTab', recordIds: before.map((record) => record.recordId), features: ['workspace-assignment'], createdAt: Date.now() });
     return { ok: true, operation: applied, records: await store.list(), workspaces: [...workspaces, ...(await store.listWorkspaces()).filter((workspace) => !workspaces.some((old) => old.workspaceId === workspace.workspaceId))] };
   }
   if (message.type === 'move-record') {
     await store.updateRecordWorkspace(message.recordId, message.workspaceId);
+    await store.putCorrection({ correctionId: crypto.randomUUID(), kind: 'movedTab', recordIds: [message.recordId], features: [message.workspaceId ?? 'unassigned'] , createdAt: Date.now() });
     return await refreshInventory();
   }
   if (message.type === 'set-protection') {
-    await store.updateRecordProtection(message.recordId, message.important);
+    const protection = Object.fromEntries(Object.entries({ important: message.important, neverSleep: message.neverSleep, keepUntilCompleted: message.keepUntilCompleted }).filter(([, value]) => value !== undefined));
+    if (!Object.keys(protection).length) return { ok: false, error: 'Protection change was incomplete.' };
+    await store.updateRecordProtection(message.recordId, protection);
+    await store.putCorrection({ correctionId: crypto.randomUUID(), kind: 'protectedTab', recordIds: [message.recordId], features: Object.entries(protection).map(([key, value]) => `${key}:${value}`), createdAt: Date.now() });
     return await refreshInventory();
   }
   if (message.type === 'delete-record') {
@@ -119,32 +125,48 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
     const record = await store.get(message.recordId);
     if (!record) return { ok: false, error: 'That tab record is no longer available.' };
     if (record.state !== 'Extinct') return { ok: false, error: 'Archive the live tab before deleting its record.' };
+    const operation = planOperation('delete', record, 'none', {}, Date.now());
+    await store.putOperation(operation);
     await store.delete(record.recordId);
+    await store.putOperation({ ...operation, status: 'applied', completedAt: Date.now() });
     return await refreshInventory();
   }
   if (message.type === 'undo-operation') {
     const operation = await store.getOperation(message.operationId);
     if (!operation || !['applied', 'partial'].includes(operation.status)) return { ok: false, error: 'That operation is not undoable.' };
-    const before = operation.before[0];
-    if (!before) return { ok: false, error: 'The operation has no recovery snapshot.' };
-    const record = await store.get(before.recordId);
-    if (!record) return { ok: false, error: 'The original tab record is no longer available.' };
-    if (before.state === 'Extinct' && record.state !== 'Extinct') return { ok: false, error: 'The current tab state changed; review recovery before undoing.' };
-    let updated = record;
-    if (before.state === 'Extinct') {
-      const restored = await adapter.createTab(before.url);
-      updated = await store.updateRecordState(record.recordId, 'Active', restored.browserTabId, restored.windowId);
-    } else if (record.browserTabId !== null) {
-      await adapter.activateTab(record.browserTabId);
-      updated = await store.updateRecordState(record.recordId, before.state, record.browserTabId, record.windowId);
+    if (!operation.before.length) return { ok: false, error: 'The operation has no recovery snapshot.' };
+    if (operation.kind === 'delete') return { ok: false, error: 'Deleted records are not recoverable from the extension.' };
+    const updatedRecords = [];
+    for (const before of operation.before) {
+      const record = await store.get(before.recordId);
+      if (!record) return { ok: false, error: 'The original tab record is no longer available.' };
+      if (before.state === 'Extinct' && record.state !== 'Extinct') return { ok: false, error: 'The current tab state changed; review recovery before undoing.' };
+      if (operation.kind === 'restore' && before.state === 'Extinct' && record.browserTabId !== null) {
+        const live = await adapter.getTab(record.browserTabId).catch(() => null);
+        if (!live || live.url !== record.url) return { ok: false, error: 'The restored tab changed before undo; review recovery first.' };
+        await adapter.closeTab(record.browserTabId);
+      } else if (operation.kind !== 'organize' && record.browserTabId === null && before.state !== 'Extinct') {
+        const restored = await adapter.createTab(before.url);
+        before.browserTabId = restored.browserTabId;
+        before.windowId = restored.windowId;
+      } else if (operation.kind !== 'organize' && record.browserTabId !== null) await adapter.activateTab(record.browserTabId);
+      if (before.state === 'Extinct') {
+        before.browserTabId = null;
+        before.windowId = null;
+      }
+      updatedRecords.push(await store.restoreSnapshot(before));
     }
     const undone = { ...operation, status: 'undone' as const, completedAt: Date.now() };
     await store.putOperation(undone);
-    return { ok: true, operation: undone, records: [updated] };
+    return { ok: true, operation: undone, records: updatedRecords };
   }
   if (message.type === 'lifecycle') {
     const record = await store.get(message.recordId);
     if (!record) return { ok: false, error: 'That tab record is no longer available.' };
+    if (record.browserTabId !== null) {
+      const live = await adapter.getTab(record.browserTabId).catch(() => null);
+      if (!live || live.windowId !== record.windowId) return { ok: false, error: 'The tab handle is stale. Refresh the inventory before trying again.' };
+    }
     if (message.action === 'restore' && record.state === 'Extinct') {
       const operation = planOperation('restore', record, 'create', { state: 'Active' }, Date.now());
       await store.putOperation(operation);

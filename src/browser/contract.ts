@@ -13,6 +13,7 @@ export type BrowserCapabilities = {
   createTab: true;
   closeTab: true;
   nativeDiscard: boolean;
+  visibleContext: boolean;
 };
 
 export type BrowserAdapter = {

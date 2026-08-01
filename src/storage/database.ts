@@ -97,7 +97,7 @@ export class IndexedDbTabStore {
     });
   }
 
-  async updateRecordProtection(recordId: string, important: boolean): Promise<void> {
+  async updateRecordProtection(recordId: string, protection: Partial<TabRecord['protection']>): Promise<void> {
     const database = await this.open();
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(TAB_STORE, 'readwrite');
@@ -106,7 +106,7 @@ export class IndexedDbTabStore {
       request.onsuccess = () => {
         const record = request.result as TabRecord | undefined;
         if (!record) { reject(new Error('Tab record no longer exists')); return; }
-        store.put({ ...record, protection: { ...record.protection, important }, updatedAt: Date.now(), revision: record.revision + 1 });
+        store.put({ ...record, protection: { ...record.protection, ...protection }, updatedAt: Date.now(), revision: record.revision + 1 });
       };
       request.onerror = () => reject(new Error('Tab record could not be read for protection change'));
       transaction.oncomplete = () => resolve();
@@ -132,8 +132,8 @@ export class IndexedDbTabStore {
     });
   }
 
-  async exportAll(): Promise<{ records: TabRecord[]; workspaces: Workspace[]; operations: Operation[]; suggestions: SuggestionBatch[] }> {
-    return { records: await this.list(), workspaces: await this.listWorkspaces(), operations: await this.listOperations(), suggestions: await this.listSuggestions() };
+  async exportAll(): Promise<{ records: TabRecord[]; workspaces: Workspace[]; operations: Operation[]; suggestions: SuggestionBatch[]; corrections: UserCorrection[] }> {
+    return { records: await this.list(), workspaces: await this.listWorkspaces(), operations: await this.listOperations(), suggestions: await this.listSuggestions(), corrections: await this.listCorrections() };
   }
 
   async get(recordId: string): Promise<TabRecord | undefined> {
@@ -239,5 +239,22 @@ export class IndexedDbTabStore {
       request.onsuccess = () => resolve();
       request.onerror = () => reject(new Error('Correction could not be saved'));
     });
+  }
+
+  async listCorrections(): Promise<UserCorrection[]> {
+    const database = await this.open();
+    return await new Promise((resolve, reject) => {
+      const request = database.transaction(CORRECTION_STORE, 'readonly').objectStore(CORRECTION_STORE).getAll();
+      request.onsuccess = () => resolve(request.result as UserCorrection[]);
+      request.onerror = () => reject(new Error('Corrections could not be read'));
+    });
+  }
+
+  async restoreSnapshot(snapshot: Operation['before'][number]): Promise<TabRecord> {
+    const record = await this.get(snapshot.recordId);
+    if (!record) throw new Error('Tab record no longer exists');
+    const restored = { ...record, browserTabId: snapshot.browserTabId, windowId: snapshot.windowId, state: snapshot.state, url: snapshot.url, workspaceId: snapshot.workspaceId, protection: snapshot.protection, updatedAt: Date.now(), revision: record.revision + 1 };
+    await this.put(restored);
+    return restored;
   }
 }

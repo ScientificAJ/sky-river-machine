@@ -3,12 +3,15 @@ export function validateSuggestionOutput(output: unknown, allowedRecordIds: Set<
   const groups = (output as { groups: unknown[] }).groups;
   if (groups.length > 32) return { ok: false, reason: 'Too many groups.' };
   const result: Array<{ name: string; recordIds: string[]; confidence: number }> = [];
+  const assigned = new Set<string>();
   for (const group of groups) {
     if (!group || typeof group !== 'object') return { ok: false, reason: 'Malformed group.' };
     const value = group as { name?: unknown; recordIds?: unknown; confidence?: unknown };
-    if (typeof value.name !== 'string' || value.name.length > 80 || !Array.isArray(value.recordIds) || typeof value.confidence !== 'number') return { ok: false, reason: 'Malformed group fields.' };
+    const keys = Object.keys(group);
+    if (keys.some((key) => !['name', 'recordIds', 'confidence'].includes(key)) || typeof value.name !== 'string' || !value.name.trim() || value.name.length > 80 || !Array.isArray(value.recordIds) || typeof value.confidence !== 'number') return { ok: false, reason: 'Malformed group fields.' };
     const recordIds = value.recordIds.filter((id): id is string => typeof id === 'string');
-    if (recordIds.length !== value.recordIds.length || recordIds.some((id) => !allowedRecordIds.has(id)) || value.confidence < 0 || value.confidence > 1) return { ok: false, reason: 'Group contains invalid records or confidence.' };
+    if (recordIds.length !== value.recordIds.length || recordIds.length > 64 || recordIds.some((id) => !allowedRecordIds.has(id) || assigned.has(id)) || value.confidence < 0 || value.confidence > 1) return { ok: false, reason: 'Group contains invalid records or confidence.' };
+    recordIds.forEach((id) => assigned.add(id));
     result.push({ name: value.name.trim(), recordIds, confidence: value.confidence });
   }
   return { ok: true, groups: result };

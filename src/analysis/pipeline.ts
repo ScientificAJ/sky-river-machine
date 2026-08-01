@@ -1,10 +1,24 @@
 import type { ModelRunner } from './model';
 import { UnavailableModelRunner } from './model';
 import { makeHeuristicSuggestion } from './suggestions';
+import { safeAnalysisInput } from './normalize';
+import { validateSuggestionOutput } from './validation';
 import type { SuggestionBatch, TabRecord } from '../shared/types';
 
 export async function suggestWithSafeFallback(records: TabRecord[], runner: ModelRunner = new UnavailableModelRunner()): Promise<{ suggestion: SuggestionBatch; model: 'unavailable' | 'available' }> {
   const fallback = makeHeuristicSuggestion(records, Date.now());
-  const response = await runner.run({ task: 'relateTabs', schemaVersion: 1, input: records.map(({ recordId, title, url, domain }) => ({ recordId, title, url, domain })), recordIds: records.map((record) => record.recordId), revisions: records.map((record) => record.revision), modelId: 'unavailable', modelVersion: 'none', artifactChecksum: 'none', strategyVersion: 'metadata-v1', timeBudgetMs: 1500 });
-  return { suggestion: fallback, model: response.ok ? 'available' : 'unavailable' };
+  const request = { task: 'relateTabs' as const, schemaVersion: 1 as const, input: records.map(({ recordId, title, url }) => ({ recordId, ...safeAnalysisInput(title, url) })), recordIds: records.map((record) => record.recordId), revisions: records.map((record) => record.revision), modelId: 'local-unavailable', modelVersion: 'none', artifactChecksum: 'none', strategyVersion: 'metadata-v1', timeBudgetMs: 1500 };
+  let response;
+  try { response = await runner.run(request); } catch { return { suggestion: fallback, model: 'unavailable' }; }
+  if (!response.ok) return { suggestion: fallback, model: 'unavailable' };
+  const validated = validateSuggestionOutput(response.output, new Set(request.recordIds));
+  if (!validated.ok || response.confidence < 0 || response.confidence > 1) return { suggestion: fallback, model: 'unavailable' };
+  return {
+    suggestion: {
+      ...fallback,
+      workspaceProposals: validated.groups.map((group) => ({ ...group, evidence: ['Local model recommendation; review before applying.'] })),
+      analysis: { ...response.metadata, confidence: response.confidence },
+    },
+    model: 'available',
+  };
 }

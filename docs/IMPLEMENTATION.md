@@ -9,13 +9,14 @@ Status: the buildable shell, local inventory, workspace/search, protection, and 
 Implemented locally:
 
 - normalized normal-window tab metadata through separate Chromium and Firefox adapters;
+- browser-specific visible-context calls stay inside adapters (`scripting.executeScript` for Chromium and `tabs.executeScript` for Firefox);
 - IndexedDB tab records with stable local IDs, schema migration to workspaces, and idempotent reconciliation;
-- read-only inventory, local workspace creation, metadata search, and protection controls;
+- read-only inventory, local workspace creation/editing, metadata search, record deletion, and all three protection controls;
 - a centralized mutation guard and approval-first lifecycle operations; automation remains off;
 - serialized inventory refreshes so overlapping browser events cannot write stale snapshots concurrently.
-- checkpointed lifecycle operations, restore/archive/rest/delete paths, bounded heuristic suggestions, model-unavailable contracts, and explicit visible-context/export/delete controls.
+- checkpointed lifecycle operations, restore/archive/rest/delete paths, bounded heuristic suggestions, model-unavailable contracts, validated model-response fallback, correction records, and explicit visible-context/export/delete controls.
 
-Testing execution is intentionally deferred to the project-wide testing pass requested by the project owner. Typechecking, builds, artifact inspection, and diff checks remain part of implementation verification.
+Focused automated tests are part of implementation verification. Real-browser smoke testing remains deferred by the project owner; a passing focused test suite does not establish browser support.
 
 Build commands:
 
@@ -36,7 +37,6 @@ Permission record:
 | `scripting` | Execute the bounded user-invoked extraction | Yes | Metadata-only mode remains usable |
 | `storage` | Small settings/bootstrap markers | No | Not applicable in this slice |
 | `alarms` | Scheduled reconciliation | No | Startup and relevant observed events only |
-| `activeTab` | User-invoked page context | No | Metadata-only view remains the whole available surface |
 | Host access | Continuous page-context analysis | No | Metadata-only view remains the whole available surface |
 
 Observed smoke notes:
