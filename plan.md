@@ -1,6 +1,6 @@
 # Sky River Machine implementation plan
 
-> Status: implementation roadmap for a documentation-first repository. No product capability described here should be called implemented until its code and the relevant tests exist.
+> Status: implementation roadmap. The repository now contains a local development implementation across the planned foundation, lifecycle, analysis, privacy, UI, and bounded-processing layers. Browser smoke/release evidence remains separately recorded in [`docs/RELEASE_STATUS.md`](docs/RELEASE_STATUS.md); no browser support claim is implied here.
 
 ## 1. What this plan is for
 
