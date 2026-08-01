@@ -45,6 +45,6 @@ Permission record:
 Observed smoke notes:
 
 - Chrome 145.0.7632.75 is installed, but the managed Chrome runner loaded its preloaded extension set and did not expose this unpacked build as a target, so page-opening verification is blocked by the environment.
-- A separate isolated Chrome 145 profile exposed the unpacked service worker, but loading `chrome-extension://fignfifoniblkonapihmkfakmlgkbkcf/extension.html` returned `ERR_FILE_NOT_FOUND`; Chrome logged a content-verifier failure for `extension.html`. This is recorded as a failed browser-page gate, not as extension support.
+- A separate isolated Chrome 145 profile did not expose the unpacked build because developer-mode extension loading is managed. The observed `fignfifoniblkonapihmkfakmlgkbkcf` service worker was verified through `chrome.runtime.getManifest()` as the preloaded Google Network Speech extension, not Sky River Machine; navigating its unrelated `extension.html` returned `ERR_FILE_NOT_FOUND`. This is recorded as an environment blocker, not as extension support or a product-page failure.
 - Firefox 153.0 accepted the packaged build as a temporary extension through WebDriver. The first run exposed a real manifest bug (the ES-module background was loaded as classic script); adding Firefox `background.type: "module"` removed that startup syntax error. The available WebDriver navigation endpoint still rejects direct `moz-extension://` navigation, so page-opening and reload assertions remain pending.
 - No cross-browser support claim is made from these partial observations.
