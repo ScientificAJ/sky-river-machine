@@ -1,8 +1,10 @@
+import { BUDGETS } from '../shared/budgets';
+
 export type AnalysisJob = { recordId: string; revision: number; priority: 'high' | 'low' };
 
 export class BoundedAnalysisQueue {
   private readonly jobs = new Map<string, AnalysisJob>();
-  constructor(private readonly maxPending = 64) {}
+  constructor(private readonly maxPending = BUDGETS.highPriorityJobs) {}
   enqueue(job: AnalysisJob): boolean {
     if (this.jobs.has(job.recordId)) { this.jobs.set(job.recordId, job); return true; }
     if (this.jobs.size >= this.maxPending) return false;
