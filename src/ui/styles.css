@@ -30,7 +30,7 @@ body {
 }
 
 .primary-nav { display: flex; flex-wrap: wrap; gap: .5rem; }
-.primary-nav button { border: 1px solid var(--border); border-radius: .5rem; padding: .55rem .75rem; color: var(--ink); background: var(--surface); font-weight: 700; }
+.primary-nav button { min-height: 44px; border: 1px solid var(--border); border-radius: .5rem; padding: .55rem .75rem; color: var(--ink); background: var(--surface); font-weight: 700; }
 .primary-nav button[aria-current="page"] { border-color: var(--river); box-shadow: inset 0 -3px var(--river); }
 .primary-nav button:focus-visible { outline: 3px solid #c06431; outline-offset: 3px; }
 
@@ -55,7 +55,7 @@ h1 { font-size: clamp(2rem, 8vw, 4.5rem); line-height: .98; }
 .workspace-section h2 { margin: 0; font-size: 1rem; }
 .workspace-section form { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; }
 .field { display: grid; gap: .35rem; color: var(--ink-muted); font-size: .875rem; font-weight: 700; }
-.field input, .field select { min-width: min(100%, 20rem); border: 1px solid var(--border); border-radius: .5rem; padding: .7rem; color: inherit; background: var(--surface); font: inherit; }
+.field input, .field select { min-width: min(100%, 20rem); min-height: 44px; border: 1px solid var(--border); border-radius: .5rem; padding: .7rem; color: inherit; background: var(--surface); font: inherit; }
 .workspace-row { margin: 0; padding: .5rem .75rem; border-left: 3px solid var(--river); }
 .suggestion { display: grid; gap: .75rem; border: 1px solid #d99d69; border-radius: .65rem; padding: 1rem; }
 .suggestion h2 { margin: 0; font-size: 1rem; }
@@ -63,6 +63,7 @@ h1 { font-size: clamp(2rem, 8vw, 4.5rem); line-height: .98; }
 .notice { border-left: 3px solid var(--river); padding: .75rem; }
 
 button {
+  min-height: 44px;
   width: fit-content;
   border: 1px solid var(--river);
   border-radius: .65rem;

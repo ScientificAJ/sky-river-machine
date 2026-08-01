@@ -1,5 +1,7 @@
 import { expect, test } from 'vitest';
 import { reconcileTabs } from '../src/core/reconciliation';
+import { recoverOperation } from '../src/core/recovery';
+import type { Operation } from '../src/shared/types';
 import type { NormalizedTab } from '../src/shared/types';
 
 const tab: NormalizedTab = {
@@ -37,4 +39,15 @@ test('reconciliation preserves an explicit dormant state for a background tab', 
   const next = reconcileTabs([dormant], [{ ...tab, active: false }], 3, () => 'new-id');
   expect(next[0]?.state).toBe('Dormant');
   expect(next[0]?.recordId).toBe('stable');
+});
+
+test('pending archive recovery only marks success when the tab is actually absent', () => {
+  const existing = reconcileTabs([], [tab], 1, () => 'stable');
+  const operation: Operation = {
+    operationId: 'operation-1', kind: 'lifecycle', targetRecordIds: ['stable'],
+    before: [{ recordId: 'stable', browserTabId: 7, windowId: 3, state: 'Active', url: tab.url, workspaceId: null, protection: existing[0]!.protection }],
+    after: { state: 'Extinct' }, browserPlan: { action: 'close', tabIds: [7] }, status: 'applying', error: null, createdAt: 1, completedAt: null,
+  };
+  expect(recoverOperation(operation, [{ ...existing[0]!, state: 'Extinct', browserTabId: null, windowId: null }], [])).toEqual({ status: 'applied', error: null });
+  expect(recoverOperation(operation, existing, [tab])).toMatchObject({ status: 'failed' });
 });

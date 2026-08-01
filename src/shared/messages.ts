@@ -1,12 +1,14 @@
 import type { InventoryMessage } from './types';
 
 const TYPES = new Set<InventoryMessage['type']>([
-  'refresh-inventory', 'list-workspaces', 'create-workspace', 'rename-workspace', 'archive-workspace', 'delete-workspace', 'move-record', 'set-protection', 'lifecycle', 'undo-operation', 'delete-record', 'get-recovery', 'get-suggestions', 'organize-heuristically', 'apply-suggestion', 'reject-suggestion', 'extract-visible-context', 'delete-all', 'export-data',
+  'refresh-inventory', 'search-metadata', 'list-workspaces', 'create-workspace', 'rename-workspace', 'archive-workspace', 'delete-workspace', 'move-record', 'set-protection', 'lifecycle', 'undo-operation', 'delete-record', 'get-recovery', 'get-suggestions', 'organize-heuristically', 'apply-suggestion', 'reject-suggestion', 'extract-visible-context', 'delete-all', 'export-data',
 ]);
 
 const id = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 128;
 const name = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0 && value.length <= 120;
 const bool = (value: unknown): value is boolean => typeof value === 'boolean';
+const pageNumber = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 10_000;
+const pageSize = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 100;
 const keysOnly = (value: Record<string, unknown>, allowed: string[]) => Object.keys(value).every((key) => allowed.includes(key));
 
 export function parseInventoryMessage(input: unknown): InventoryMessage | null {
@@ -16,6 +18,8 @@ export function parseInventoryMessage(input: unknown): InventoryMessage | null {
   switch (value.type) {
     case 'refresh-inventory': case 'list-workspaces': case 'get-recovery': case 'get-suggestions': case 'organize-heuristically': case 'export-data':
       return keysOnly(value, ['type']) ? value as InventoryMessage : null;
+    case 'search-metadata':
+      return keysOnly(value, ['type', 'query', 'offset', 'limit']) && typeof value.query === 'string' && value.query.length <= 200 && pageNumber(value.offset) && pageSize(value.limit) ? value as InventoryMessage : null;
     case 'create-workspace':
       return keysOnly(value, ['type', 'name']) && name(value.name) ? value as InventoryMessage : null;
     case 'rename-workspace':

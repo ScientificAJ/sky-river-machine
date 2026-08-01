@@ -4,6 +4,7 @@ import { suggestWithSafeFallback } from '../src/analysis/pipeline';
 import { validateModelRequest } from '../src/analysis/model';
 import type { ModelRunner } from '../src/analysis/model';
 import type { TabRecord } from '../src/shared/types';
+import { syntheticRecords } from '../src/core/fixtures';
 
 const record: TabRecord = {
   recordId: 'fictional-record', browserTabId: 7, windowId: 3, workspaceId: null, state: 'Active',
@@ -41,6 +42,13 @@ test('model runner failure keeps the heuristic fallback usable', async () => {
   const runner: ModelRunner = { run: async () => { throw new Error('fictional model failure'); } };
   const result = await suggestWithSafeFallback([record], runner);
   expect(result.model).toBe('unavailable');
+});
+
+test('heuristic fallback bounds analysis work for a large archive', async () => {
+  const result = await suggestWithSafeFallback(syntheticRecords(10_000));
+  expect(result.model).toBe('unavailable');
+  expect(result.suggestion.sourceRevision).toBe(10_000);
+  expect(result.suggestion.workspaceProposals.length).toBeLessThanOrEqual(24);
 });
 
 test('model request validation bounds input and aligned revisions', () => {

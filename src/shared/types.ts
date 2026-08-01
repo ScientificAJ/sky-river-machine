@@ -98,6 +98,7 @@ export type Settings = {
 
 export type InventoryMessage =
   | { type: 'refresh-inventory' }
+  | { type: 'search-metadata'; query: string; offset: number; limit: number }
   | { type: 'list-workspaces' }
   | { type: 'create-workspace'; name: string }
   | { type: 'rename-workspace'; workspaceId: string; name: string }
@@ -119,11 +120,14 @@ export type InventoryMessage =
 
 export type InventoryResponse =
   | { ok: true; records: TabRecord[] }
+  | { ok: true; records: TabRecord[]; total: number }
   | { ok: true; workspaces: Workspace[] }
   | { ok: true; workspace: Workspace }
   | { ok: true; records: TabRecord[]; workspaces: Workspace[] }
   | { ok: true; operation: Operation; records: TabRecord[] }
+  | { ok: true; operation: Operation; records: TabRecord[]; total: number }
   | { ok: true; operation: Operation; records: TabRecord[]; workspaces: Workspace[] }
+  | { ok: true; operation: Operation; records: TabRecord[]; total: number; workspaces: Workspace[] }
   | { ok: true; suggestions: SuggestionBatch[] }
   | { ok: true; recovery: Operation[] }
   | { ok: true; data: string }

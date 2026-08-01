@@ -1,12 +1,15 @@
 import { createBrowserAdapter } from '../browser';
 import type { InventoryMessage, InventoryResponse, Workspace } from '../shared/types';
 import { reconcileTabs } from '../core/reconciliation';
+import { recoverOperation } from '../core/recovery';
 import { IndexedDbTabStore } from '../storage/database';
 import type { RawRuntimeApi } from '../browser/raw';
 import { canMutateTab } from '../core/lifecycle';
 import { planOperation } from '../core/operations';
 import { suggestWithSafeFallback } from '../analysis/pipeline';
 import { parseInventoryMessage } from '../shared/messages';
+import { searchMetadata } from '../core/search';
+import { BUDGETS } from '../shared/budgets';
 
 const adapter = createBrowserAdapter();
 const store = new IndexedDbTabStore();
@@ -46,7 +49,12 @@ async function refreshInventoryOnce(): Promise<InventoryResponse> {
     const tabs = await adapter.queryTabs();
     const records = reconcileTabs(await store.list(), tabs, Date.now());
     await store.replaceAll(records);
-    return { ok: true, records };
+    const pending = await store.listOperations(['planned', 'applying']);
+    for (const operation of pending) {
+      const result = recoverOperation(operation, records, tabs);
+      if (result) await store.putOperation({ ...operation, status: result.status, error: result.error, completedAt: Date.now() });
+    }
+    return { ok: true, records: records.slice(0, BUDGETS.searchPageSize), total: records.length };
   } catch {
     return { ok: false, error: 'Local inventory is unavailable. Check the extension permission and try again.' };
   }
@@ -54,6 +62,10 @@ async function refreshInventoryOnce(): Promise<InventoryResponse> {
 
 async function handleMessage(message: InventoryMessage): Promise<InventoryResponse> {
   if (message.type === 'refresh-inventory') return await refreshInventory();
+  if (message.type === 'search-metadata') {
+    const matches = searchMetadata(await store.list(), await store.listWorkspaces(), message.query);
+    return { ok: true, records: matches.slice(message.offset, message.offset + message.limit), total: matches.length };
+  }
   if (message.type === 'list-workspaces') return { ok: true, workspaces: await store.listWorkspaces() };
   if (message.type === 'get-recovery') return { ok: true, recovery: await store.listOperations(['planned', 'applying', 'partial', 'failed']) };
   if (message.type === 'get-suggestions') return { ok: true, suggestions: await store.listSuggestions() };
@@ -122,17 +134,39 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
     await store.putOperation(applied);
     await store.updateSuggestion({ ...suggestion, status: 'accepted' });
     await store.putCorrection({ correctionId: crypto.randomUUID(), kind: 'movedTab', recordIds: before.map((record) => record.recordId), features: ['workspace-assignment'], createdAt: Date.now() });
-    return { ok: true, operation: applied, records: await store.list(), workspaces: [...workspaces, ...(await store.listWorkspaces()).filter((workspace) => !workspaces.some((old) => old.workspaceId === workspace.workspaceId))] };
+    const updatedRecords = await store.list();
+    return { ok: true, operation: applied, records: updatedRecords.slice(0, BUDGETS.searchPageSize), total: updatedRecords.length, workspaces: [...workspaces, ...(await store.listWorkspaces()).filter((workspace) => !workspaces.some((old) => old.workspaceId === workspace.workspaceId))] };
   }
   if (message.type === 'move-record') {
-    await store.updateRecordWorkspace(message.recordId, message.workspaceId);
+    const record = await store.get(message.recordId);
+    if (!record) return { ok: false, error: 'That tab record is no longer available.' };
+    const nextOperation = planOperation('organize', record, 'none', { workspaceId: message.workspaceId }, Date.now());
+    await store.putOperation(nextOperation);
+    try {
+      await store.updateRecordWorkspace(message.recordId, message.workspaceId);
+      await store.putOperation({ ...nextOperation, status: 'applied', completedAt: Date.now() });
+    } catch {
+      await store.putOperation({ ...nextOperation, status: 'failed', error: 'The workspace move was not saved.', completedAt: Date.now() });
+      return { ok: false, error: 'The workspace move was not saved.' };
+    }
     await store.putCorrection({ correctionId: crypto.randomUUID(), kind: 'movedTab', recordIds: [message.recordId], features: [message.workspaceId ?? 'unassigned'] , createdAt: Date.now() });
     return await refreshInventory();
   }
   if (message.type === 'set-protection') {
+    const record = await store.get(message.recordId);
+    if (!record) return { ok: false, error: 'That tab record is no longer available.' };
     const protection = Object.fromEntries(Object.entries({ important: message.important, neverSleep: message.neverSleep, keepUntilCompleted: message.keepUntilCompleted }).filter(([, value]) => value !== undefined));
     if (!Object.keys(protection).length) return { ok: false, error: 'Protection change was incomplete.' };
-    await store.updateRecordProtection(message.recordId, protection);
+    const nextProtection = { ...record.protection, ...protection };
+    const nextOperation = planOperation('protectionChange', record, 'none', { protection: nextProtection }, Date.now());
+    await store.putOperation(nextOperation);
+    try {
+      await store.updateRecordProtection(message.recordId, protection);
+      await store.putOperation({ ...nextOperation, status: 'applied', completedAt: Date.now() });
+    } catch {
+      await store.putOperation({ ...nextOperation, status: 'failed', error: 'The protection change was not saved.', completedAt: Date.now() });
+      return { ok: false, error: 'The protection change was not saved.' };
+    }
     await store.putCorrection({ correctionId: crypto.randomUUID(), kind: 'protectedTab', recordIds: [message.recordId], features: Object.entries(protection).map(([key, value]) => `${key}:${value}`), createdAt: Date.now() });
     return await refreshInventory();
   }
@@ -179,9 +213,11 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
   if (message.type === 'lifecycle') {
     const record = await store.get(message.recordId);
     if (!record) return { ok: false, error: 'That tab record is no longer available.' };
+    let liveRecord = record;
     if (record.browserTabId !== null) {
       const live = await adapter.getTab(record.browserTabId).catch(() => null);
       if (!live || live.windowId !== record.windowId) return { ok: false, error: 'The tab handle is stale. Refresh the inventory before trying again.' };
+      liveRecord = { ...record, signals: { ...record.signals, active: live.active, audible: live.audible, discarded: live.discarded, loading: live.loading, pinned: live.pinned } };
     }
     if (message.action === 'restore' && record.state === 'Extinct') {
       const operation = planOperation('restore', record, 'create', { state: 'Active' }, Date.now());
@@ -216,7 +252,7 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
       }
     }
     const mutation = message.action === 'rest' ? 'discard' : 'close';
-    const decision = canMutateTab(record, mutation);
+    const decision = canMutateTab(liveRecord, mutation);
     if (!decision.allowed) return { ok: false, error: decision.reason };
     if (message.action === 'archive' && !message.confirm) return { ok: false, error: 'Archiving requires explicit confirmation after review.' };
     const action = message.action === 'rest' ? (adapter.getCapabilities().nativeDiscard ? 'discard' : 'none') : 'close';

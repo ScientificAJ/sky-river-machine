@@ -184,9 +184,36 @@ export class IndexedDbTabStore {
   async delete(recordId: string): Promise<void> {
     const database = await this.open();
     await new Promise<void>((resolve, reject) => {
-      const request = database.transaction(TAB_STORE, 'readwrite').objectStore(TAB_STORE).delete(recordId);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(new Error('Local tab record could not be deleted'));
+      const transaction = database.transaction([TAB_STORE, SUGGESTION_STORE, CORRECTION_STORE], 'readwrite');
+      transaction.objectStore(TAB_STORE).delete(recordId);
+      const suggestions = transaction.objectStore(SUGGESTION_STORE);
+      const suggestionRequest = suggestions.getAll();
+      suggestionRequest.onsuccess = () => {
+        for (const suggestion of suggestionRequest.result as SuggestionBatch[]) {
+          const next = {
+            ...suggestion,
+            workspaceProposals: suggestion.workspaceProposals.map((proposal) => ({ ...proposal, recordIds: proposal.recordIds.filter((id) => id !== recordId) })).filter((proposal) => proposal.recordIds.length > 0),
+            duplicateCandidates: suggestion.duplicateCandidates.filter((candidate) => !candidate.recordIds.includes(recordId)),
+            uncertainRecords: suggestion.uncertainRecords.filter((id) => id !== recordId),
+          };
+          if (!next.workspaceProposals.length && !next.duplicateCandidates.length && !next.uncertainRecords.length) suggestions.delete(suggestion.suggestionId);
+          else suggestions.put(next);
+        }
+      };
+      suggestionRequest.onerror = () => reject(new Error('Suggestions could not be cleaned up'));
+      const corrections = transaction.objectStore(CORRECTION_STORE);
+      const correctionRequest = corrections.getAll();
+      correctionRequest.onsuccess = () => {
+        for (const correction of correctionRequest.result as UserCorrection[]) {
+          const recordIds = correction.recordIds.filter((id) => id !== recordId);
+          if (!recordIds.length) corrections.delete(correction.correctionId);
+          else corrections.put({ ...correction, recordIds });
+        }
+      };
+      correctionRequest.onerror = () => reject(new Error('Corrections could not be cleaned up'));
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(new Error('Local tab record could not be deleted'));
+      transaction.onabort = () => reject(new Error('Local tab record deletion was aborted'));
     });
   }
 

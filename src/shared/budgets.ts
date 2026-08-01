@@ -3,6 +3,7 @@ export const BUDGETS = {
   highPriorityJobs: 64,
   lowPriorityJobs: 128,
   analysisBatchSize: 12,
+  maxModelRecords: 128,
   maxRecordCache: 256,
   maxVisibleContextCharacters: 500,
   searchPageSize: 50,

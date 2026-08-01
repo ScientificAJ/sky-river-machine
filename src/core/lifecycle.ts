@@ -10,6 +10,8 @@ export function canMutateTab(record: TabRecord, kind: MutationKind): MutationDec
   if (record.protection.important || record.protection.neverSleep || record.protection.keepUntilCompleted) {
     return { allowed: false, reason: 'The user protected this tab.' };
   }
+  if (record.signals.pinned) return { allowed: false, reason: 'Pinned tabs need explicit browser-level handling before lifecycle changes.' };
+  if (record.signals.loading) return { allowed: false, reason: 'A loading tab needs review before lifecycle changes.' };
   if (record.signals.audible) return { allowed: false, reason: 'An audible tab needs explicit user review.' };
   if (kind === 'close' && !record.url) return { allowed: false, reason: 'This tab has no restorable URL.' };
   return { allowed: true };

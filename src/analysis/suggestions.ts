@@ -1,7 +1,7 @@
 import type { SuggestionBatch, TabRecord } from '../shared/types';
 import { duplicateScore, relatedScore } from './heuristics';
 
-export function makeHeuristicSuggestion(records: TabRecord[], now: number): SuggestionBatch {
+export function makeHeuristicSuggestion(records: TabRecord[], now: number, sourceRecords: TabRecord[] = records): SuggestionBatch {
   const proposals: SuggestionBatch['workspaceProposals'] = [];
   const duplicates: SuggestionBatch['duplicateCandidates'] = [];
   for (let i = 0; i < records.length; i += 1) {
@@ -21,5 +21,5 @@ export function makeHeuristicSuggestion(records: TabRecord[], now: number): Sugg
       }
     }
   }
-  return { suggestionId: crypto.randomUUID(), sourceRevision: records.reduce((total, record) => total + record.revision, 0), workspaceProposals: proposals.slice(0, 24), duplicateCandidates: duplicates.slice(0, 24), uncertainRecords: records.filter((record) => !record.title || !record.url).map((record) => record.recordId), status: 'pending', createdAt: now };
+  return { suggestionId: crypto.randomUUID(), sourceRevision: sourceRecords.reduce((total, record) => total + record.revision, 0), workspaceProposals: proposals.slice(0, 24), duplicateCandidates: duplicates.slice(0, 24), uncertainRecords: records.filter((record) => !record.title || !record.url).map((record) => record.recordId), status: 'pending', createdAt: now };
 }

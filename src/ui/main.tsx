@@ -3,11 +3,15 @@ import { useEffect, useState } from 'preact/hooks';
 import { refreshInventory, sendMessage } from '../browser/extension-client';
 import type { InventoryResponse, Operation, SuggestionBatch, TabRecord, Workspace } from '../shared/types';
 import { BUDGETS } from '../shared/budgets';
-import { searchMetadata } from '../core/search';
 import './styles.css';
 
 function App() {
   const [records, setRecords] = useState<TabRecord[]>([]);
+  const [recordCount, setRecordCount] = useState(0);
+  const [searchRecords, setSearchRecords] = useState<TabRecord[]>([]);
+  const [searchTotal, setSearchTotal] = useState(0);
+  const [searchStatus, setSearchStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [searchVersion, setSearchVersion] = useState(0);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [query, setQuery] = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
@@ -26,16 +30,39 @@ function App() {
       if (!workspaceResponse.ok) throw new Error(workspaceResponse.error);
       if (!('workspaces' in workspaceResponse)) throw new Error('Workspace response was incomplete');
       setRecords(response.records);
+      setRecordCount('total' in response ? response.total : response.records.length);
       setWorkspaces(workspaceResponse.workspaces);
       if (suggestionResponse.ok && 'suggestions' in suggestionResponse) setSuggestions(suggestionResponse.suggestions);
       if (recoveryResponse.ok && 'recovery' in recoveryResponse) setRecovery(recoveryResponse.recovery);
       setStatus('ready');
+      setSearchVersion((value) => value + 1);
     } catch {
       setStatus('error');
     }
   };
 
   useEffect(() => { void load(); }, []);
+
+  useEffect(() => {
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) {
+      setSearchRecords([]);
+      setSearchTotal(0);
+      setSearchStatus('idle');
+      return;
+    }
+    let current = true;
+    setSearchStatus('loading');
+    void sendMessage({ type: 'search-metadata', query: normalizedQuery, offset: 0, limit: BUDGETS.searchPageSize }).then((response) => {
+      if (!current) return;
+      if (response.ok && 'records' in response && 'total' in response) {
+        setSearchRecords(response.records);
+        setSearchTotal(response.total);
+        setSearchStatus('ready');
+      } else setSearchStatus('error');
+    }).catch(() => { if (current) setSearchStatus('error'); });
+    return () => { current = false; };
+  }, [query, searchVersion]);
 
   const createWorkspace = async (event: Event) => {
     event.preventDefault();
@@ -46,12 +73,12 @@ function App() {
     setWorkspaceName('');
   };
 
-  const visibleRecords = searchMetadata(records, workspaces, query);
+  const visibleRecords = query.trim() ? searchRecords : records;
   const renderedRecords = visibleRecords.slice(0, BUDGETS.searchPageSize);
 
   const setProtection = async (record: TabRecord, key: keyof TabRecord['protection']) => {
     const response = await sendMessage({ type: 'set-protection', recordId: record.recordId, [key]: !record.protection[key] });
-    if (response.ok && 'records' in response) setRecords(response.records);
+    if (response.ok && 'records' in response) { setRecords(response.records); if ('total' in response) setRecordCount(response.total); }
   };
 
   const moveRecord = async (recordId: string, workspaceId: string | null) => {
@@ -98,7 +125,7 @@ function App() {
 
   const applySuggestion = async (suggestionId: string) => {
     const response = await sendMessage({ type: 'apply-suggestion', suggestionId });
-    if (response.ok && 'records' in response) { setRecords(response.records); if ('workspaces' in response) setWorkspaces(response.workspaces); if ('operation' in response) setLastOperation(response.operation); }
+    if (response.ok && 'records' in response) { setRecords(response.records); if ('total' in response) setRecordCount(response.total); if ('workspaces' in response) setWorkspaces(response.workspaces); if ('operation' in response) setLastOperation(response.operation); }
     await load();
   };
 
@@ -140,7 +167,7 @@ function App() {
   const deleteAll = async () => {
     if (!window.confirm('Delete all Sky River Machine local records, suggestions, and recovery data? This cannot erase browser history.')) return;
     const response = await sendMessage({ type: 'delete-all', confirm: true });
-    if (response.ok) { setRecords([]); setWorkspaces([]); setSuggestions([]); setRecovery([]); setLastOperation(null); setStatus('ready'); }
+    if (response.ok) { setRecords([]); setRecordCount(0); setWorkspaces([]); setSuggestions([]); setRecovery([]); setLastOperation(null); setStatus('ready'); }
   };
 
   return (
@@ -157,11 +184,12 @@ function App() {
       <p class="status" role="status" aria-live="polite">
         {status === 'loading' && 'Reading permitted tab metadata locally…'}
         {status === 'error' && 'Could not read permitted tab metadata. Check the extension permission and try again.'}
-        {status === 'ready' && `${records.length} currently observed record${records.length === 1 ? '' : 's'}.`}
+        {status === 'ready' && `${recordCount} currently observed record${recordCount === 1 ? '' : 's'}.`}
       </p>
-      {status === 'ready' && records.length === 0 && <p class="empty">No normal-window tabs are available to show.</p>}
-      {status === 'ready' && records.length > 0 && visibleRecords.length === 0 && <p class="empty">No local records match that search.</p>}
-      {visibleRecords.length > 0 && <><p class="quiet">Showing {renderedRecords.length} of {visibleRecords.length} matching records.</p><ul class="tab-list" aria-label="Observed tabs">
+      {query.trim() && searchStatus === 'loading' && <p class="quiet" role="status">Searching local metadata…</p>}
+      {query.trim() && searchStatus === 'error' && <p class="empty" role="alert">Local search is unavailable. Try again.</p>}
+      {status === 'ready' && visibleRecords.length === 0 && searchStatus !== 'loading' && <p class="empty">{query.trim() ? 'No local records match that search.' : 'No normal-window tabs are available to show.'}</p>}
+      {visibleRecords.length > 0 && <><p class="quiet">Showing {renderedRecords.length} of {query.trim() ? searchTotal : recordCount} matching records.</p><ul class="tab-list" aria-label="Observed tabs">
         {renderedRecords.map((record) => (
           <li key={record.recordId} class="tab-row">
             <strong>{record.title}</strong>

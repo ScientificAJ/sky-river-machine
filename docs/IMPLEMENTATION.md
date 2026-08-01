@@ -15,7 +15,8 @@ Implemented locally:
 - a centralized mutation guard and approval-first lifecycle operations; automation remains off;
 - serialized inventory refreshes so overlapping browser events cannot write stale snapshots concurrently.
 - checkpointed lifecycle operations, restore/archive/rest/delete paths, bounded heuristic suggestions, model-unavailable contracts, validated model-response fallback, correction records, and explicit visible-context/export/delete controls.
-- strict extension-message validation, explicit workspace deletion/data inspection, bounded model requests, and a reproducible offline model-evaluation command.
+- strict extension-message validation, explicit workspace deletion/data inspection, bounded model requests, paged background search, conservative startup recovery for planned/applying operations, and a reproducible offline model-evaluation command.
+- manual workspace/protection changes are journaled; deleting a record prunes its suggestion and correction references; pinned and loading tabs are protected from lifecycle mutation.
 
 Focused automated tests are part of implementation verification. `npm run evaluate:model` records candidate model gates separately; q4f16 fails before inference and q8 runs but fails the structured-output and latency probes, so neither is bundled. Real-browser smoke testing remains deferred by the project owner; a passing focused test suite does not establish browser support.
 

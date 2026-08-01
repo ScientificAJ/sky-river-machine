@@ -18,6 +18,8 @@ test('the lifecycle guard rejects active and protected records', () => {
   expect(canMutateTab({ ...record, signals: { ...record.signals, active: false }, protection: { ...record.protection, important: true } }, 'discard').allowed).toBe(false);
   expect(canMutateTab({ ...record, signals: { ...record.signals, active: false }, protection: { ...record.protection, neverSleep: true } }, 'discard').allowed).toBe(false);
   expect(canMutateTab({ ...record, signals: { ...record.signals, active: false }, protection: { ...record.protection, keepUntilCompleted: true } }, 'close').allowed).toBe(false);
+  expect(canMutateTab({ ...record, signals: { ...record.signals, active: false, pinned: true } }, 'close').allowed).toBe(false);
+  expect(canMutateTab({ ...record, signals: { ...record.signals, active: false, loading: true } }, 'discard').allowed).toBe(false);
 });
 
 test('heuristics identify exact duplicates without a domain category map', () => {
