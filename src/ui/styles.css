@@ -29,6 +29,11 @@ body {
   padding: 3rem 1.25rem;
 }
 
+.primary-nav { display: flex; flex-wrap: wrap; gap: .5rem; }
+.primary-nav a { border: 1px solid var(--border); border-radius: .5rem; padding: .55rem .75rem; color: var(--ink); background: var(--surface); font-weight: 700; text-decoration: none; }
+.primary-nav a:focus-visible { outline: 3px solid #c06431; outline-offset: 3px; }
+.anchor-target { position: relative; top: -1rem; }
+
 .eyebrow {
   margin: 0;
   color: var(--ink-muted);

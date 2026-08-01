@@ -139,17 +139,20 @@ function App() {
       <h1>Sky River Machine</h1>
       <p class="lede">This development build is under construction.</p>
       <p class="quiet">Metadata is the default. A separate, confirmed action can read bounded visible headings and a description locally. Consequential tab changes always require review and recovery.</p>
+      <nav class="primary-nav" aria-label="Primary"><a href="#home">Home</a><a href="#search">Search</a><a href="#workspaces">Workspaces</a><a href="#recovery">Recovery</a><a href="#settings">Settings</a></nav>
+      <span id="home" class="anchor-target" aria-hidden="true"></span>
       <button type="button" onClick={() => void load()} disabled={status === 'loading'}>Refresh local tab metadata</button>
       <button type="button" onClick={() => void organize()} disabled={status !== 'ready'}>Organize tabs (heuristic suggestions)</button>
-      {recovery.length > 0 && <section class="recovery" role="alert" aria-labelledby="recovery-heading"><h2 id="recovery-heading">Recovery review</h2><p>{recovery.length} operation{recovery.length === 1 ? '' : 's'} need review.</p>{recovery.map((operation) => <p key={operation.operationId}>{operation.kind} · {operation.status} <button type="button" onClick={() => void undo(operation.operationId)}>Try undo</button></p>)}</section>}
+      <section id="recovery" class="recovery" aria-labelledby="recovery-heading"><h2 id="recovery-heading">Recovery</h2>{recovery.length > 0 ? <><p role="alert">{recovery.length} operation{recovery.length === 1 ? '' : 's'} need review.</p>{recovery.map((operation) => <p key={operation.operationId}>{operation.kind} · {operation.status} <button type="button" onClick={() => void undo(operation.operationId)}>Try undo</button></p>)}</> : <p>No pending recovery actions.</p>}</section>
       {lastOperation && lastOperation.status === 'applied' && <p class="notice" role="status">{lastOperation.kind} completed. <button type="button" onClick={() => void undo(lastOperation.operationId)}>Undo</button></p>}
-      <label class="field">Search local metadata<input value={query} onInput={(event) => setQuery((event.currentTarget as HTMLInputElement).value)} placeholder="Title, domain, URL, workspace" /></label>
+      <label id="search" class="field">Search local metadata<input value={query} onInput={(event) => setQuery((event.currentTarget as HTMLInputElement).value)} placeholder="Title, domain, URL, workspace" /></label>
       <p class="status" role="status" aria-live="polite">
         {status === 'loading' && 'Reading permitted tab metadata locally…'}
         {status === 'error' && 'Could not read permitted tab metadata. Check the extension permission and try again.'}
         {status === 'ready' && `${records.length} currently observed record${records.length === 1 ? '' : 's'}.`}
       </p>
       {status === 'ready' && records.length === 0 && <p class="empty">No normal-window tabs are available to show.</p>}
+      {status === 'ready' && records.length > 0 && visibleRecords.length === 0 && <p class="empty">No local records match that search.</p>}
       {visibleRecords.length > 0 && <ul class="tab-list" aria-label="Observed tabs">
         {visibleRecords.map((record) => (
           <li key={record.recordId} class="tab-row">
@@ -177,7 +180,7 @@ function App() {
         <button type="button" onClick={() => void applySuggestion(suggestion.suggestionId)}>Apply workspace suggestions</button>
         <button type="button" onClick={() => void rejectSuggestion(suggestion.suggestionId)}>Reject suggestion</button>
       </section>)}
-      <section class="workspace-section" aria-labelledby="workspace-heading">
+      <section id="workspaces" class="workspace-section" aria-labelledby="workspace-heading">
         <h2 id="workspace-heading">Local workspaces</h2>
         <form onSubmit={(event) => void createWorkspace(event)}>
           <label class="field">Create workspace<input value={workspaceName} onInput={(event) => setWorkspaceName((event.currentTarget as HTMLInputElement).value)} placeholder="e.g. Fictional project" /></label>
@@ -185,7 +188,7 @@ function App() {
         </form>
         {workspaces.filter((workspace) => !workspace.archivedAt).map((workspace) => <p class="workspace-row" key={workspace.workspaceId}>{workspace.name} <button type="button" onClick={() => void renameWorkspace(workspace)}>Rename</button> <button type="button" onClick={() => void archiveWorkspace(workspace)}>Archive workspace</button></p>)}
       </section>
-      <section class="workspace-section" aria-labelledby="privacy-heading">
+      <section id="settings" class="workspace-section" aria-labelledby="privacy-heading">
         <h2 id="privacy-heading">Local data controls</h2>
         <p class="quiet">Metadata is local by default. Visible context is optional, bounded, and deletable. No private-window data is captured.</p>
         <button type="button" onClick={() => void exportData()}>Export local data</button>
