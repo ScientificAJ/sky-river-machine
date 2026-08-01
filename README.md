@@ -497,7 +497,7 @@ Dormancy, extinction, searching, and restoring should feel safe enough that user
 
 The repository now contains a local-only development implementation covering metadata inventory, IndexedDB records, reconciliation, workspaces, token/context-ranked search, protection, checkpointed lifecycle paths, bounded heuristic suggestions, correction-informed naming, duplicate review, model-unavailable fallback contracts, optional bounded visible context, export/delete controls, and accessibility-oriented UI states.
 
-Firefox smoke is now recorded for the packaged development build. Chromium smoke, representative performance/fault evidence, private-window/restart release gates, browser support claims, and local-model artifact qualification remain pending, so this is still a development build rather than a supported release.
+Firefox smoke is recorded for the packaged development build, and the pinned q8 local-model candidate has been re-evaluated without passing its structured-output gate. Chromium smoke, representative performance/fault evidence, private-window/restart release gates, browser support claims, and a qualifying local model remain pending, so this is still a development build rather than a supported release.
 
 The first useful version is the complete product described in this README. It is expected to understand tab context, organize tabs into meaningful workspaces, label every tab **Active**, **Dormant**, or **Extinct**, manage that lifecycle, protect important pages, detect duplicates, search by meaning, learn from corrections, process sensitive context locally where possible, and restore work when the user needs it.
 

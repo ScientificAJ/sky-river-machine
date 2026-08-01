@@ -52,3 +52,7 @@ MODEL_SHA256=0fab87142e3eb1fcacb881f8282e7473e62ad66920c347b81f088da6fda2da37 \
 MODEL_DTYPE=q8 \
 npm run evaluate:model
 ```
+
+## q8 CPU rerun
+
+On 2026-08-01 with Node v24.18.0 on CPU, the same checksum-pinned artifact loaded in 1,052 ms. The two synthetic runs took 3,305 ms and 3,333 ms; neither output contained a JSON object. The result still fails the structured-output gate and remains unbundled. The evaluator was installed temporarily with remote model loading disabled, and the artifact lived only under /tmp.

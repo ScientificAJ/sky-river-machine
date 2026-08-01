@@ -9,6 +9,7 @@ The local model artifact is not bundled. The pinned offline candidate evaluation
 Current local verification:
 
 - `npm test`: 38 focused tests pass across reconciliation/recovery, safety, operation checkpointing, model fallback/cancellation, adapter normalization/capability fallback, shell, queue backpressure, search, duplicate review, and scale fixtures.
+- On 2026-08-01, the q8 rerun passed checksum and CPU initialization but took 3,305 ms and 3,333 ms for the two synthetic prompts; neither output contained a JSON object. The candidate remains disqualified.
 - `npm run typecheck`: passes.
 - `npm run build:chromium`: passes.
 - `npm run build:firefox`: passes.

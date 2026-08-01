@@ -1,6 +1,7 @@
 # Sky River Machine implementation plan
 
 > Status: implementation roadmap. The repository now contains local slices through the foundation, lifecycle, bounded analysis fallback, privacy controls, UI surfaces, synthetic scale fixtures, and reproducible local-model evaluation gates. The tested q4f16 and q8 candidates did not pass the runtime/structured-output gates. Firefox smoke is recorded, while Chromium smoke and representative release performance/fault injection remain separately recorded in [`docs/RELEASE_STATUS.md`](docs/RELEASE_STATUS.md); no browser support or release claim is implied here.
+> The q8 candidate qualification was reproduced on 2026-08-01 and still failed the structured-output gate; this does not change the fallback-only release boundary.
 
 ## 1. What this plan is for
 
