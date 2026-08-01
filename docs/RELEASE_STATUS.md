@@ -24,7 +24,7 @@ The evaluator runtime is installed only temporarily for the documented offline e
 
 Deferred release verification:
 
-- isolated browser installation, successful page opening/reload, restart, and permission denial; the latest Chrome attempt exposed the service worker but failed the extension-page load with `ERR_FILE_NOT_FOUND` and a content-verifier error, while Firefox direct extension-page navigation remains blocked by the available WebDriver BiDi path;
+- isolated browser installation, successful page opening/reload, restart, and permission denial; the latest Chrome attempt exposed the service worker but failed the extension-page load with `ERR_FILE_NOT_FOUND` and a content-verifier error, while Firefox now starts the corrected ES-module background but direct extension-page navigation remains blocked by the available WebDriver BiDi path;
 - side-panel/sidebar capability checks;
 - native discard behavior and browser-specific lifecycle recovery;
 - large-session timings, memory, storage pressure, and fault injection on representative devices;

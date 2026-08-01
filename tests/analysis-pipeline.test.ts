@@ -45,10 +45,12 @@ test('model runner failure keeps the heuristic fallback usable', async () => {
 });
 
 test('heuristic fallback bounds analysis work for a large archive', async () => {
+  const started = performance.now();
   const result = await suggestWithSafeFallback(syntheticRecords(10_000));
   expect(result.model).toBe('unavailable');
   expect(result.suggestion.sourceRevision).toBe(10_000);
   expect(result.suggestion.workspaceProposals.length).toBeLessThanOrEqual(24);
+  expect(performance.now() - started).toBeLessThan(1_000);
 });
 
 test('model request validation bounds input and aligned revisions', () => {

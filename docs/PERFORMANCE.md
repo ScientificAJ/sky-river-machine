@@ -13,9 +13,16 @@ Observed test durations for deterministic synthetic records:
 
 | Records | Search plus reconciliation test |
 | ---: | ---: |
-| 12 | 5 ms |
+| 12 | 9 ms |
 | 100 | 2 ms |
-| 1,000 | 8 ms |
-| 10,000 | 56 ms |
+| 1,000 | 16 ms |
+| 10,000 | 108 ms |
 
 The 10,000-record pure-path test has a 500 ms guard. IndexedDB transactions, extension startup, UI rendering, model inference, memory use, storage pressure, and real-browser behavior remain unmeasured here.
+
+Local safety evidence:
+
+- The heuristic fallback receives at most 128 prioritized records even when the archive contains 10,000 records; the focused test exercises that path and preserves the full source revision for stale-proposal checks.
+- The same focused run measured the synthetic 10,000-record fallback path at 436 ms on this desktop runtime; this is a guard/evidence point, not a low-end or browser release budget.
+- Recovery tests cover confirmed archive completion, failed stale wake, and partial organization. Pending operations are marked for review after restart rather than replayed blindly.
+- These are local pure-logic checks, not representative browser, IndexedDB, memory, or low-end-device measurements.
