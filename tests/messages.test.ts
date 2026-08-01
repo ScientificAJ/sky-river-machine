@@ -9,6 +9,7 @@ test('message validation accepts bounded extension intents', () => {
 
 test('message validation rejects unexpected fields and oversized input', () => {
   expect(parseInventoryMessage({ type: 'refresh-inventory', extra: 'unexpected' })).toBeNull();
+  expect(parseInventoryMessage({ type: 'undo-operation', suggestionId: 'wrong-field' })).toBeNull();
   expect(parseInventoryMessage({ type: 'create-workspace', name: 'x'.repeat(121) })).toBeNull();
   expect(parseInventoryMessage({ type: 'delete-all', confirm: 'yes' })).toBeNull();
 });

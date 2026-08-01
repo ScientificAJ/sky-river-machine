@@ -33,8 +33,10 @@ export function parseInventoryMessage(input: unknown): InventoryMessage | null {
     }
     case 'lifecycle':
       return keysOnly(value, ['type', 'recordId', 'action', 'confirm']) && id(value.recordId) && ['wake', 'rest', 'archive', 'restore'].includes(String(value.action)) && (value.confirm === undefined || bool(value.confirm)) ? value as InventoryMessage : null;
-    case 'undo-operation': case 'apply-suggestion': case 'reject-suggestion':
-      return keysOnly(value, ['type', 'operationId', 'suggestionId']) && id(value.operationId ?? value.suggestionId) ? value as InventoryMessage : null;
+    case 'undo-operation':
+      return keysOnly(value, ['type', 'operationId']) && id(value.operationId) ? value as InventoryMessage : null;
+    case 'apply-suggestion': case 'reject-suggestion':
+      return keysOnly(value, ['type', 'suggestionId']) && id(value.suggestionId) ? value as InventoryMessage : null;
     case 'delete-record':
       return keysOnly(value, ['type', 'recordId', 'confirm']) && id(value.recordId) && bool(value.confirm) ? value as InventoryMessage : null;
     case 'extract-visible-context':
