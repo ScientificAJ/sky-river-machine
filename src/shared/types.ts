@@ -59,7 +59,8 @@ export type InventoryMessage =
   | { type: 'create-workspace'; name: string }
   | { type: 'rename-workspace'; workspaceId: string; name: string }
   | { type: 'archive-workspace'; workspaceId: string }
-  | { type: 'move-record'; recordId: string; workspaceId: string | null };
+  | { type: 'move-record'; recordId: string; workspaceId: string | null }
+  | { type: 'set-protection'; recordId: string; important: boolean };
 
 export type InventoryResponse =
   | { ok: true; records: TabRecord[] }

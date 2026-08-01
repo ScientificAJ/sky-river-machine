@@ -41,6 +41,11 @@ function App() {
 
   const visibleRecords = searchMetadata(records, workspaces, query).filter((record) => record.state !== 'Extinct');
 
+  const setProtection = async (record: TabRecord) => {
+    const response = await sendMessage({ type: 'set-protection', recordId: record.recordId, important: !record.protection.important });
+    if (response.ok && 'records' in response) setRecords(response.records);
+  };
+
   return (
     <main class="shell">
       <p class="eyebrow">Local browser workspace</p>
@@ -59,7 +64,8 @@ function App() {
         {visibleRecords.map((record) => (
           <li key={record.recordId} class="tab-row">
             <strong>{record.title}</strong>
-            <span>{record.domain} · {record.state}</span>
+            <span>{record.domain} · {record.state}{record.protection.important ? ' · Protected' : ''}</span>
+            <button type="button" onClick={() => void setProtection(record)}>{record.protection.important ? 'Remove protection' : 'Protect tab'}</button>
           </li>
         ))}
       </ul>}

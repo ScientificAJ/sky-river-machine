@@ -32,6 +32,10 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
     await store.updateRecordWorkspace(message.recordId, message.workspaceId);
     return await refreshInventory();
   }
+  if (message.type === 'set-protection') {
+    await store.updateRecordProtection(message.recordId, message.important);
+    return await refreshInventory();
+  }
 
   const workspaces = await store.listWorkspaces();
   const now = Date.now();

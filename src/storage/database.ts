@@ -87,4 +87,21 @@ export class IndexedDbTabStore {
       transaction.onerror = () => reject(new Error('Tab record workspace could not be saved'));
     });
   }
+
+  async updateRecordProtection(recordId: string, important: boolean): Promise<void> {
+    const database = await this.open();
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(TAB_STORE, 'readwrite');
+      const store = transaction.objectStore(TAB_STORE);
+      const request = store.get(recordId);
+      request.onsuccess = () => {
+        const record = request.result as TabRecord | undefined;
+        if (!record) { reject(new Error('Tab record no longer exists')); return; }
+        store.put({ ...record, protection: { ...record.protection, important }, updatedAt: Date.now(), revision: record.revision + 1 });
+      };
+      request.onerror = () => reject(new Error('Tab record could not be read for protection change'));
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(new Error('Tab record protection could not be saved'));
+    });
+  }
 }
