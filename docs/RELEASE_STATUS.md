@@ -8,13 +8,14 @@ The local model artifact is not bundled. The pinned offline candidate evaluation
 
 Current local verification:
 
-- `npm test`: 24 focused tests pass across reconciliation/recovery, safety, operation checkpointing, model fallback, adapter normalization, shell, queue backpressure, and scale fixtures.
+- `npm test`: 26 focused tests pass across reconciliation/recovery, safety, operation checkpointing, model fallback, adapter normalization, shell, queue backpressure, and scale fixtures.
 - `npm run typecheck`: passes.
 - `npm run build:chromium`: passes.
 - `npm run build:firefox`: passes.
 - `npm run audit`: checks permissions and packaged artifacts for remote code/request patterns, host permissions, content scripts, and tab mutations.
 - `docs/PERFORMANCE.md`: records a pure-path synthetic calibration only; it is not representative release performance.
 - Search returns a bounded page from the background store, and heuristic analysis is capped at 128 prioritized records; representative browser/UI/storage timings remain unmeasured.
+- Suggestion review is local and approval-first; edited proposals are revalidated against the current record revision before application.
 - `docs/MODEL_EVALUATION.md`: records the pinned local-model candidates, checksums, runtime measurements, structured-output failure, and replacement decision.
 - `MODEL_DIR=/tmp/sky-river-smollm npm run evaluate:model`: reproduces the recorded q4f16 offline model failure with remote loading disabled; set `MODEL_FILE`, `MODEL_SHA256`, and `MODEL_DTYPE=q8` for the q8 follow-up.
 - `npm audit --omit=dev --audit-level=high`: reports zero production dependency vulnerabilities.
@@ -23,7 +24,7 @@ The evaluator runtime is installed only temporarily for the documented offline e
 
 Deferred release verification:
 
-- isolated browser installation, page opening, reload, restart, and permission denial;
+- isolated browser installation, successful page opening/reload, restart, and permission denial; the latest Chrome attempt exposed the service worker but failed the extension-page load with `ERR_FILE_NOT_FOUND` and a content-verifier error, while Firefox direct extension-page navigation remains blocked by the available WebDriver BiDi path;
 - side-panel/sidebar capability checks;
 - native discard behavior and browser-specific lifecycle recovery;
 - large-session timings, memory, storage pressure, and fault injection on representative devices;

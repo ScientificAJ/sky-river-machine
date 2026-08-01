@@ -1,7 +1,7 @@
 import type { InventoryMessage } from './types';
 
 const TYPES = new Set<InventoryMessage['type']>([
-  'refresh-inventory', 'search-metadata', 'list-workspaces', 'create-workspace', 'rename-workspace', 'archive-workspace', 'delete-workspace', 'move-record', 'set-protection', 'lifecycle', 'undo-operation', 'delete-record', 'get-recovery', 'get-suggestions', 'organize-heuristically', 'apply-suggestion', 'reject-suggestion', 'extract-visible-context', 'delete-all', 'export-data',
+  'refresh-inventory', 'search-metadata', 'list-workspaces', 'create-workspace', 'rename-workspace', 'archive-workspace', 'delete-workspace', 'move-record', 'set-protection', 'lifecycle', 'undo-operation', 'delete-record', 'get-recovery', 'get-suggestions', 'organize-heuristically', 'review-suggestion', 'apply-suggestion', 'reject-suggestion', 'extract-visible-context', 'delete-all', 'export-data',
 ]);
 
 const id = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 128;
@@ -41,6 +41,21 @@ export function parseInventoryMessage(input: unknown): InventoryMessage | null {
       return keysOnly(value, ['type', 'operationId']) && id(value.operationId) ? value as InventoryMessage : null;
     case 'apply-suggestion': case 'reject-suggestion':
       return keysOnly(value, ['type', 'suggestionId']) && id(value.suggestionId) ? value as InventoryMessage : null;
+    case 'review-suggestion': {
+      if (!keysOnly(value, ['type', 'suggestionId', 'workspaceProposals']) || !id(value.suggestionId) || !Array.isArray(value.workspaceProposals) || value.workspaceProposals.length > 24) return null;
+      const proposals = value.workspaceProposals;
+      const assigned = new Set<string>();
+      for (const proposal of proposals) {
+        if (!proposal || typeof proposal !== 'object' || !keysOnly(proposal as Record<string, unknown>, ['name', 'recordIds'])) return null;
+        const draft = proposal as { name?: unknown; recordIds?: unknown };
+        if (!name(draft.name) || !Array.isArray(draft.recordIds) || draft.recordIds.length > 64) return null;
+        for (const recordId of draft.recordIds) {
+          if (!id(recordId) || assigned.has(recordId)) return null;
+          assigned.add(recordId);
+        }
+      }
+      return value as InventoryMessage;
+    }
     case 'delete-record':
       return keysOnly(value, ['type', 'recordId', 'confirm']) && id(value.recordId) && bool(value.confirm) ? value as InventoryMessage : null;
     case 'extract-visible-context':

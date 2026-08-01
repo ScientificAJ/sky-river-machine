@@ -5,6 +5,12 @@ import type { InventoryResponse, Operation, SuggestionBatch, TabRecord, Workspac
 import { BUDGETS } from '../shared/budgets';
 import './styles.css';
 
+type SuggestionDraft = { name: string; recordIds: string[] };
+
+function draftFromSuggestion(suggestion: SuggestionBatch): SuggestionDraft[] {
+  return suggestion.workspaceProposals.map(({ name, recordIds }) => ({ name, recordIds: [...recordIds] }));
+}
+
 function App() {
   const [records, setRecords] = useState<TabRecord[]>([]);
   const [recordCount, setRecordCount] = useState(0);
@@ -16,6 +22,7 @@ function App() {
   const [query, setQuery] = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
   const [suggestions, setSuggestions] = useState<SuggestionBatch[]>([]);
+  const [drafts, setDrafts] = useState<Record<string, SuggestionDraft[]>>({});
   const [recovery, setRecovery] = useState<Operation[]>([]);
   const [lastOperation, setLastOperation] = useState<Operation | null>(null);
   const [view, setView] = useState<'home' | 'search' | 'workspaces' | 'recovery' | 'settings'>('home');
@@ -120,10 +127,35 @@ function App() {
 
   const organize = async () => {
     const response = await sendMessage({ type: 'organize-heuristically' });
-    if (response.ok && 'suggestions' in response) setSuggestions(response.suggestions);
+    if (response.ok && 'suggestions' in response) {
+      setSuggestions(response.suggestions);
+      setDrafts((current) => ({ ...current, ...Object.fromEntries(response.suggestions.map((suggestion) => [suggestion.suggestionId, draftFromSuggestion(suggestion)])) }));
+    }
+  };
+
+  const updateDraft = (suggestion: SuggestionBatch, update: (draft: SuggestionDraft[]) => SuggestionDraft[]) => {
+    setDrafts((current) => ({ ...current, [suggestion.suggestionId]: update(current[suggestion.suggestionId] ?? draftFromSuggestion(suggestion)) }));
+  };
+
+  const toggleDraftRecord = (suggestion: SuggestionBatch, proposalIndex: number, recordId: string) => {
+    updateDraft(suggestion, (draft) => {
+      const selected = draft[proposalIndex]?.recordIds.includes(recordId) ?? false;
+      return draft.map((proposal, index) => ({ ...proposal, recordIds: proposal.recordIds.filter((id) => id !== recordId).concat(!selected && index === proposalIndex ? [recordId] : []) }));
+    });
+  };
+
+  const saveSuggestionDraft = async (suggestion: SuggestionBatch): Promise<boolean> => {
+    const draft = drafts[suggestion.suggestionId];
+    if (!draft) return true;
+    const response = await sendMessage({ type: 'review-suggestion', suggestionId: suggestion.suggestionId, workspaceProposals: draft });
+    if (!response.ok) { window.alert(response.error); return false; }
+    if ('suggestions' in response) setSuggestions((current) => current.map((item) => response.suggestions.find((updated) => updated.suggestionId === item.suggestionId) ?? item));
+    return true;
   };
 
   const applySuggestion = async (suggestionId: string) => {
+    const currentSuggestion = suggestions.find((suggestion) => suggestion.suggestionId === suggestionId);
+    if (currentSuggestion && !(await saveSuggestionDraft(currentSuggestion))) return;
     const response = await sendMessage({ type: 'apply-suggestion', suggestionId });
     if (response.ok && 'records' in response) { setRecords(response.records); if ('total' in response) setRecordCount(response.total); if ('workspaces' in response) setWorkspaces(response.workspaces); if ('operation' in response) setLastOperation(response.operation); }
     await load();
@@ -167,7 +199,7 @@ function App() {
   const deleteAll = async () => {
     if (!window.confirm('Delete all Sky River Machine local records, suggestions, and recovery data? This cannot erase browser history.')) return;
     const response = await sendMessage({ type: 'delete-all', confirm: true });
-    if (response.ok) { setRecords([]); setRecordCount(0); setWorkspaces([]); setSuggestions([]); setRecovery([]); setLastOperation(null); setStatus('ready'); }
+    if (response.ok) { setRecords([]); setRecordCount(0); setWorkspaces([]); setSuggestions([]); setDrafts({}); setRecovery([]); setLastOperation(null); setStatus('ready'); }
   };
 
   return (
@@ -178,7 +210,7 @@ function App() {
       <p class="quiet">Metadata is the default. A separate, confirmed action can read bounded visible headings and a description locally. Consequential tab changes always require review and recovery.</p>
       <nav class="primary-nav" aria-label="Primary">{(['home', 'search', 'workspaces', 'recovery', 'settings'] as const).map((destination) => <button type="button" key={destination} aria-current={view === destination ? 'page' : undefined} onClick={() => setView(destination)}>{destination[0]!.toUpperCase() + destination.slice(1)}</button>)}</nav>
       <section id="home" hidden={view !== 'home'} class="home-section" aria-labelledby="home-heading"><h2 id="home-heading">Home</h2><button type="button" onClick={() => void load()} disabled={status === 'loading'}>Refresh local tab metadata</button><button type="button" onClick={() => void organize()} disabled={status !== 'ready'}>Organize tabs (heuristic suggestions)</button><p class="quiet">Local model status: unavailable in this build. Heuristic suggestions and manual organization remain available.</p>{recovery.length > 0 && <p class="recovery" role="alert">{recovery.length} operation{recovery.length === 1 ? '' : 's'} need review. Open Recovery to inspect them.</p>}</section>
-      <section id="recovery" hidden={view !== 'recovery'} class="recovery" aria-labelledby="recovery-heading"><h2 id="recovery-heading">Recovery</h2>{recovery.length > 0 ? <><p role="alert">{recovery.length} operation{recovery.length === 1 ? '' : 's'} need review.</p>{recovery.map((operation) => <p key={operation.operationId}>{operation.kind} · {operation.status} <button type="button" onClick={() => void undo(operation.operationId)}>Try undo</button></p>)}</> : <p>No pending recovery actions.</p>}</section>
+      <section id="recovery" hidden={view !== 'recovery'} class="recovery" aria-labelledby="recovery-heading"><h2 id="recovery-heading">Recovery</h2>{recovery.length > 0 ? <><p role="alert">{recovery.length} operation{recovery.length === 1 ? '' : 's'} need review.</p>{recovery.map((operation) => <p key={operation.operationId}><strong>{operation.kind} · {operation.status}</strong>{operation.error && <> · {operation.error}</>}{(operation.status === 'partial' || operation.status === 'applied') && <button type="button" onClick={() => void undo(operation.operationId)}>Try undo</button>}</p>)}</> : <p>No pending recovery actions.</p>}</section>
       {lastOperation && lastOperation.status === 'applied' && <p class="notice" role="status">{lastOperation.kind} completed. <button type="button" onClick={() => void undo(lastOperation.operationId)}>Undo</button></p>}
       <section id="search" hidden={view !== 'search'} class="search-section" aria-labelledby="search-heading"><h2 id="search-heading">Search</h2><label class="field">Search local metadata<input value={query} onInput={(event) => setQuery((event.currentTarget as HTMLInputElement).value)} placeholder="Title, domain, URL, workspace" /></label>
       <p class="status" role="status" aria-live="polite">
@@ -208,14 +240,24 @@ function App() {
           </li>
         ))}
       </ul></>}</section>
-      {view === 'home' && suggestions.filter((suggestion) => suggestion.status === 'pending').map((suggestion) => <section class="suggestion" key={suggestion.suggestionId} aria-labelledby={`suggestion-${suggestion.suggestionId}`}>
-        <h2 id={`suggestion-${suggestion.suggestionId}`}>Suggested workspace review</h2>
-        <p class="quiet">These are bounded metadata suggestions. Review them before applying; no browser tabs move during this step.</p>
-        {suggestion.workspaceProposals.slice(0, 6).map((proposal) => <p class="workspace-row" key={`${suggestion.suggestionId}-${proposal.name}`}>{proposal.name} · {proposal.recordIds.length} tabs · {Math.round(proposal.confidence * 100)}% confidence</p>)}
-        {suggestion.duplicateCandidates.length > 0 && <p class="quiet">Possible duplicates: {suggestion.duplicateCandidates.length}. Nothing will close automatically.</p>}
-        <button type="button" onClick={() => void applySuggestion(suggestion.suggestionId)}>Apply workspace suggestions</button>
-        <button type="button" onClick={() => void rejectSuggestion(suggestion.suggestionId)}>Reject suggestion</button>
-      </section>)}
+      {view === 'home' && suggestions.filter((suggestion) => suggestion.status === 'pending').map((suggestion) => {
+        const draft = drafts[suggestion.suggestionId] ?? draftFromSuggestion(suggestion);
+        const recordIds = [...new Set(draft.flatMap((proposal) => proposal.recordIds))];
+        return <section class="suggestion" key={suggestion.suggestionId} aria-labelledby={`suggestion-${suggestion.suggestionId}`}>
+          <h2 id={`suggestion-${suggestion.suggestionId}`}>Suggested workspace review</h2>
+          <p class="quiet">Review names and assignments before applying. Unchecking a tab leaves it unchanged; no browser tabs move during this step.</p>
+          {draft.slice(0, 24).map((proposal, proposalIndex) => <div class="proposal-editor" key={`${suggestion.suggestionId}-${proposalIndex}`}>
+            <label class="field">Workspace name<input value={proposal.name} onInput={(event) => updateDraft(suggestion, (current) => current.map((item, index) => index === proposalIndex ? { ...item, name: (event.currentTarget as HTMLInputElement).value } : item))} /></label>
+            <p class="quiet">{proposal.recordIds.length} assigned tab{proposal.recordIds.length === 1 ? '' : 's'} · {Math.round((suggestion.workspaceProposals[proposalIndex]?.confidence ?? 0.5) * 100)}% confidence</p>
+            <div class="proposal-records">{recordIds.map((recordId) => { const record = records.find((item) => item.recordId === recordId); return <label key={recordId}><input type="checkbox" checked={proposal.recordIds.includes(recordId)} onChange={() => toggleDraftRecord(suggestion, proposalIndex, recordId)} /> {record?.title ?? recordId}</label>; })}</div>
+          </div>)}
+          {suggestion.duplicateCandidates.length > 0 && <p class="quiet">Possible duplicates: {suggestion.duplicateCandidates.length}. Nothing will close automatically.</p>}
+          <button type="button" onClick={() => updateDraft(suggestion, (current) => [...current, { name: `Suggested workspace ${current.length + 1}`, recordIds: [] }])}>Split into another workspace</button>
+          <button type="button" onClick={() => void saveSuggestionDraft(suggestion)}>Save review</button>
+          <button type="button" onClick={() => void applySuggestion(suggestion.suggestionId)}>Apply workspace suggestions</button>
+          <button type="button" onClick={() => void rejectSuggestion(suggestion.suggestionId)}>Reject suggestion</button>
+        </section>;
+      })}
       <section id="workspaces" hidden={view !== 'workspaces'} class="workspace-section" aria-labelledby="workspace-heading">
         <h2 id="workspace-heading">Local workspaces</h2>
         <form onSubmit={(event) => void createWorkspace(event)}>

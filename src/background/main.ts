@@ -1,5 +1,5 @@
 import { createBrowserAdapter } from '../browser';
-import type { InventoryMessage, InventoryResponse, Workspace } from '../shared/types';
+import type { InventoryMessage, InventoryResponse, SuggestionBatch, Workspace } from '../shared/types';
 import { reconcileTabs } from '../core/reconciliation';
 import { recoverOperation } from '../core/recovery';
 import { IndexedDbTabStore } from '../storage/database';
@@ -102,6 +102,24 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
     const { suggestion } = await suggestWithSafeFallback(records.filter((record) => record.state !== 'Extinct'));
     await store.putSuggestion(suggestion);
     return { ok: true, suggestions: [suggestion] };
+  }
+  if (message.type === 'review-suggestion') {
+    const suggestion = await store.getSuggestion(message.suggestionId);
+    if (!suggestion || suggestion.status !== 'pending') return { ok: false, error: 'That suggestion is no longer available.' };
+    const records = await store.list();
+    const currentRevision = records.reduce((total, record) => total + record.revision, 0);
+    if (currentRevision !== suggestion.sourceRevision) return { ok: false, error: 'The suggestion expired because tab data changed. Generate a new suggestion.' };
+    const allowed = new Set(records.filter((record) => record.state !== 'Extinct').map((record) => record.recordId));
+    if (message.workspaceProposals.some((proposal) => proposal.recordIds.some((recordId) => !allowed.has(recordId)))) return { ok: false, error: 'The review included a record that is no longer available.' };
+    const reviewed: SuggestionBatch = {
+      ...suggestion,
+      workspaceProposals: message.workspaceProposals.map((proposal, index) => {
+        const original = suggestion.workspaceProposals[index];
+        return { name: proposal.name.trim().slice(0, 80), recordIds: proposal.recordIds, confidence: original?.confidence ?? 0.5, evidence: original?.evidence ?? ['Edited by the user; review before applying.'] };
+      }),
+    };
+    await store.updateSuggestion(reviewed);
+    return { ok: true, suggestions: [reviewed] };
   }
   if (message.type === 'reject-suggestion') {
     const suggestion = await store.getSuggestion(message.suggestionId);

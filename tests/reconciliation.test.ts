@@ -51,3 +51,27 @@ test('pending archive recovery only marks success when the tab is actually absen
   expect(recoverOperation(operation, [{ ...existing[0]!, state: 'Extinct', browserTabId: null, windowId: null }], [])).toEqual({ status: 'applied', error: null });
   expect(recoverOperation(operation, existing, [tab])).toMatchObject({ status: 'failed' });
 });
+
+test('recovery reports partial organization instead of replaying it blindly', () => {
+  const records = reconcileTabs([], [tab, { ...tab, browserTabId: 8, title: 'Second fictional tab' }], 1, (() => {
+    let next = 0;
+    return () => `record-${++next}`;
+  })());
+  const operation: Operation = {
+    operationId: 'operation-2', kind: 'organize', targetRecordIds: ['record-1', 'record-2'],
+    before: records.map((record) => ({ recordId: record.recordId, browserTabId: record.browserTabId, windowId: record.windowId, state: record.state, url: record.url, workspaceId: null, protection: record.protection })),
+    after: {}, browserPlan: { action: 'none', tabIds: [] }, status: 'applying', error: null, createdAt: 1, completedAt: null,
+  };
+  const partial = [{ ...records[0]!, workspaceId: 'workspace-1' }, records[1]!];
+  expect(recoverOperation(operation, partial, [tab, { ...tab, browserTabId: 8, title: 'Second fictional tab' }])).toEqual({ status: 'partial', error: 'Some workspace assignments were applied before restart; review the remaining records.' });
+});
+
+test('recovery refuses to call a stale wake operation successful', () => {
+  const existing = reconcileTabs([], [{ ...tab, active: false }], 1, () => 'stable');
+  const operation: Operation = {
+    operationId: 'operation-3', kind: 'lifecycle', targetRecordIds: ['stable'],
+    before: [{ recordId: 'stable', browserTabId: 7, windowId: 3, state: 'Dormant', url: tab.url, workspaceId: null, protection: existing[0]!.protection }],
+    after: { state: 'Active' }, browserPlan: { action: 'activate', tabIds: [7] }, status: 'applying', error: null, createdAt: 1, completedAt: null,
+  };
+  expect(recoverOperation(operation, existing, [{ ...tab, active: false }])).toMatchObject({ status: 'failed' });
+});

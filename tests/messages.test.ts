@@ -6,6 +6,7 @@ test('message validation accepts bounded extension intents', () => {
   expect(parseInventoryMessage({ type: 'create-workspace', name: 'Fictional workspace' })).toEqual({ type: 'create-workspace', name: 'Fictional workspace' });
   expect(parseInventoryMessage({ type: 'delete-workspace', workspaceId: 'fictional-workspace', confirm: true })).toEqual({ type: 'delete-workspace', workspaceId: 'fictional-workspace', confirm: true });
   expect(parseInventoryMessage({ type: 'search-metadata', query: 'fictional', offset: 0, limit: 50 })).toEqual({ type: 'search-metadata', query: 'fictional', offset: 0, limit: 50 });
+  expect(parseInventoryMessage({ type: 'review-suggestion', suggestionId: 'fictional-suggestion', workspaceProposals: [{ name: 'Fictional group', recordIds: ['fictional-record'] }] })).toEqual({ type: 'review-suggestion', suggestionId: 'fictional-suggestion', workspaceProposals: [{ name: 'Fictional group', recordIds: ['fictional-record'] }] });
 });
 
 test('message validation rejects unexpected fields and oversized input', () => {
@@ -15,4 +16,5 @@ test('message validation rejects unexpected fields and oversized input', () => {
   expect(parseInventoryMessage({ type: 'delete-all', confirm: 'yes' })).toBeNull();
   expect(parseInventoryMessage({ type: 'search-metadata', query: 'fictional', offset: -1, limit: 50 })).toBeNull();
   expect(parseInventoryMessage({ type: 'search-metadata', query: 'fictional', offset: 0, limit: 101 })).toBeNull();
+  expect(parseInventoryMessage({ type: 'review-suggestion', suggestionId: 'fictional-suggestion', workspaceProposals: [{ name: 'A', recordIds: ['same'] }, { name: 'B', recordIds: ['same'] }] })).toBeNull();
 });

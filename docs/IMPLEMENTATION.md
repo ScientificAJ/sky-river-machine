@@ -17,6 +17,7 @@ Implemented locally:
 - checkpointed lifecycle operations, restore/archive/rest/delete paths, bounded heuristic suggestions, model-unavailable contracts, validated model-response fallback, correction records, and explicit visible-context/export/delete controls.
 - strict extension-message validation, explicit workspace deletion/data inspection, bounded model requests, paged background search, conservative startup recovery for planned/applying operations, and a reproducible offline model-evaluation command.
 - manual workspace/protection changes are journaled; deleting a record prunes its suggestion and correction references; pinned and loading tabs are protected from lifecycle mutation.
+- heuristic proposal review supports bounded rename, reassignment, split/merge-by-assignment, reject, and leave-unchanged decisions before local application.
 
 Focused automated tests are part of implementation verification. `npm run evaluate:model` records candidate model gates separately; q4f16 fails before inference and q8 runs but fails the structured-output and latency probes, so neither is bundled. Real-browser smoke testing remains deferred by the project owner; a passing focused test suite does not establish browser support.
 
@@ -44,5 +45,6 @@ Permission record:
 Observed smoke notes:
 
 - Chrome 145.0.7632.75 is installed, but the managed Chrome runner loaded its preloaded extension set and did not expose this unpacked build as a target, so page-opening verification is blocked by the environment.
+- A separate isolated Chrome 145 profile exposed the unpacked service worker, but loading `chrome-extension://fignfifoniblkonapihmkfakmlgkbkcf/extension.html` returned `ERR_FILE_NOT_FOUND`; Chrome logged a content-verifier failure for `extension.html`. This is recorded as a failed browser-page gate, not as extension support.
 - Firefox 153.0 accepted the unpacked `dist/firefox` directory as a temporary extension through WebDriver BiDi. The protocol used here rejects direct `moz-extension://` navigation, so page-opening and reload assertions remain pending.
 - No cross-browser support claim is made from these partial observations.

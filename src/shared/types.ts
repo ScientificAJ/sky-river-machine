@@ -112,6 +112,7 @@ export type InventoryMessage =
   | { type: 'get-recovery' }
   | { type: 'get-suggestions' }
   | { type: 'organize-heuristically' }
+  | { type: 'review-suggestion'; suggestionId: string; workspaceProposals: Array<{ name: string; recordIds: string[] }> }
   | { type: 'apply-suggestion'; suggestionId: string }
   | { type: 'reject-suggestion'; suggestionId: string }
   | { type: 'extract-visible-context'; recordId: string; confirm: boolean }
