@@ -41,7 +41,7 @@ The same pinned repository revision was evaluated with the CPU-oriented `onnx/mo
 - Synthetic runs: `19973` ms and `20959` ms
 - Structured-output probe: one of two runs produced JSON-like text; the second did not
 
-Decision: runtime compatibility improved, but this artifact still fails the structured-output and latency gates. It is not bundled or enabled. The extension continues to use the safe model-unavailable path until a candidate passes representative grouping-quality, output-contract, resource, and licensing evaluation.
+Decision: runtime compatibility improved, but this artifact still fails the structured-output and latency gates. It was not bundled or enabled; the later MiniLM embedding replacement is recorded below.
 
 Reproduction:
 
@@ -56,3 +56,26 @@ npm run evaluate:model
 ## q8 CPU rerun
 
 On 2026-08-01 with Node v24.18.0 on CPU, the same checksum-pinned artifact loaded in 1,052 ms. The two synthetic runs took 3,305 ms and 3,333 ms; neither output contained a JSON object. The result still fails the structured-output gate and remains unbundled. The evaluator was installed temporarily with remote model loading disabled, and the artifact lived only under /tmp.
+
+## Bundled MiniLM replacement
+
+The generative candidates above were not suitable for a small, fast, schema-safe extension path. The replacement is an embedding model:
+
+- Repository: [Xenova/all-MiniLM-L6-v2](https://huggingface.co/Xenova/all-MiniLM-L6-v2)
+- Revision: `751bff37182d3f1213fa05d7196b954e230abad9`
+- Artifact: `onnx/model_quantized.onnx`
+- Size: `22972370` bytes
+- SHA-256: `afdb6f1a0e45b715d0bb9b11772f032c399babd23bfc31fed1c170afc848bdb1`
+- License: Apache-2.0; the license text is bundled beside the model files
+
+The packaged runtime uses Transformers.js 4.2.0 with remote models disabled and local files enabled. `relateTabs` embeds bounded title/URL metadata, clusters normalized 384-dimensional vectors using cosine similarity, and then emits the existing validated groups schema. No generated text is trusted or used to call browser APIs.
+
+Reproduction on 2026-08-01, Node v24.18.0, CPU:
+
+- `npm run evaluate:embedding` passed checksum verification.
+- Load: 121 ms; synthetic batch inference: 16 ms; total: 137 ms.
+- Related browser-extension similarity: `0.694`; unrelated recipe similarity: `0.220`.
+
+```bash
+npm run evaluate:embedding
+```

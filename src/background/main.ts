@@ -7,12 +7,14 @@ import type { RawRuntimeApi } from '../browser/raw';
 import { canMutateTab } from '../core/lifecycle';
 import { planOperation } from '../core/operations';
 import { suggestWithSafeFallback } from '../analysis/pipeline';
+import { MiniLmEmbeddingRunner } from '../analysis/minilm-runner';
 import { parseInventoryMessage } from '../shared/messages';
 import { searchMetadata } from '../core/search';
 import { BUDGETS } from '../shared/budgets';
 
 const adapter = createBrowserAdapter();
 const store = new IndexedDbTabStore();
+const modelRunner = new MiniLmEmbeddingRunner();
 let refreshInFlight: Promise<InventoryResponse> | null = null;
 let refreshQueued = false;
 
@@ -99,7 +101,7 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
   }
   if (message.type === 'organize-heuristically') {
     const records = await store.list();
-    const { suggestion } = await suggestWithSafeFallback(records.filter((record) => record.state !== 'Extinct'), undefined, await store.listWorkspaces(), await store.listCorrections());
+    const { suggestion } = await suggestWithSafeFallback(records.filter((record) => record.state !== 'Extinct'), modelRunner, await store.listWorkspaces(), await store.listCorrections());
     await store.putSuggestion(suggestion);
     return { ok: true, suggestions: [suggestion] };
   }

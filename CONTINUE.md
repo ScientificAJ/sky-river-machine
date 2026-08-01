@@ -5,14 +5,14 @@
 The extension implementation is substantially complete but the full plan is **not finished** and the project is **not release-ready**.
 
 - Branch: `main`
-- Latest committed baseline before this handoff update: `e73f330d80ba09d51d050cab87f04f16e3aa8bdb` (`add continuation handoff`)
+- This session adds the MiniLM embedding runner, packaged model assets, tests, evaluator, audit policy, and synchronized documentation.
 - Remote: `https://github.com/ScientificAJ/sky-river-machine.git`
 - Phases 0–7: implemented
 - Phase 8: mostly implemented, with release gates still open
-- Focused tests: 38 passing across 8 files
+- Focused tests: 42 passing across 10 files
 - Chromium and Firefox production builds: passing
 - Offline production dependency audit: 0 vulnerabilities
-- The worktree was clean before the current documentation update. The current session adds `JUDGES.md` and updates this file; commit both together.
+- The final commit must include the implementation, model asset, evaluator, audit, and documentation changes together, then be pushed to `main`.
 
 ## Judge requirements
 
@@ -47,7 +47,7 @@ This is an implementation handoff, not a release claim:
 | Phase 5 | Implemented | Main extension UI surfaces and recovery/settings flows |
 | Phase 6 | Implemented | Focused tests, scale fixtures, packaging and artifact checks |
 | Phase 7 | Implemented with partial browser evidence | Firefox core smoke passed; complete cross-browser gates remain |
-| Phase 8 | Partially implemented | Chromium smoke, full Firefox gates, model qualification, performance/fault evidence remain |
+| Phase 8 | Partially implemented | Chromium smoke, full Firefox gates, browser WASM/model evidence, performance/fault evidence remain |
 
 Approximate progress remains **about 90% of core implementation** and **about 75% of release acceptance**. These are estimates, not plan-defined metrics; the unfinished work is concentrated in high-value release gates.
 
@@ -60,6 +60,7 @@ Approximate progress remains **about 90% of core implementation** and **about 75
 - Protected-tab rules and safe action planning
 - Checkpointed organization, recovery, restoration, and undo
 - Bounded heuristic fallback organization with validated model-output handling
+- Bundled MiniLM embedding organization with deterministic cosine clustering and offline evaluator
 - Search with exact, token, context, workspace, title, domain, URL, and stored visible-context matching
 - User corrections that influence future fallback suggestions
 - Duplicate review with keep, dismiss, and archive-selected decisions
@@ -72,7 +73,7 @@ Approximate progress remains **about 90% of core implementation** and **about 75
 - Browser APIs are accessed through explicit Chromium and Firefox adapters.
 - Durable state is local IndexedDB; there is no hosted backend or cloud sync.
 - The default analysis context is minimized tab metadata. Visible page context is bounded and user-invoked.
-- No host permissions, persistent content scripts, remote model requests, analytics, runtime-fetched JavaScript, or bundled model assets are present in the current slice.
+- No host permissions, persistent content scripts, remote model requests, analytics, or runtime-fetched JavaScript are present; the bundled model and ONNX runtime are local assets only.
 - The model boundary is explicit. A model recommendation is validated and remains subject to deterministic safety policy and user approval.
 - Protected and uncertain tabs are not silently discarded, archived, moved, or closed.
 - Recovery information is checkpointed before risky browser mutation; partial success must remain visible.
@@ -108,14 +109,14 @@ Chromium smoke is still blocked by the current managed desktop environment: Chro
 
 3. Finish Firefox release-gate checks: browser restart, private-window isolation, explicit permission-denial behavior, sidebar/entry-point behavior where supported, and degraded capability paths.
 
-4. Qualify a local model through `scripts/evaluate-model.mjs`. The model must satisfy the existing latency, structured-output, semantic-quality, privacy, and licensing requirements before it is bundled or described as supported.
+4. Finish browser-model qualification through `npm run evaluate:embedding` and the real extension runtime. The model must satisfy representative grouping, cancellation, browser-WASM, resource, multilingual, privacy, and licensing requirements before any supported-release claim.
 
    Existing evidence:
 
-   - q4f16 SmolLM2 ONNX candidate: CPU initialization failed.
-   - q8 SmolLM2 ONNX candidate: approximately 20-second task times and unreliable JSON-like output; failed the current gate.
-   - No model is bundled.
-   - `UnavailableModelRunner` remains the safe fallback.
+   - q4f16/q8 SmolLM2 generative candidates: rejected for runtime/structured-output/latency failures.
+   - MiniLM checksum and CPU embedding probe: passed; 121 ms load, 16 ms synthetic inference, 384 dimensions.
+   - The MiniLM model and ONNX runtime are bundled locally with remote model loading disabled.
+   - Heuristic fallback remains active for unavailable, malformed, cancelled, or over-budget inference.
 
 5. Run representative performance and fault-injection checks for large sessions, IndexedDB/storage corruption or recovery, stale tab IDs, partial multi-tab failure, service-worker reload, and model timeout/unavailability.
 
@@ -216,3 +217,4 @@ Do not mark the full plan complete until all of these have evidence:
 - `docs/IMPLEMENTATION.md` — implemented behavior map
 - `docs/TESTING_PERFORMANCE.md` — testing, performance, and release expectations
 - `scripts/evaluate-model.mjs` — local model qualification harness
+- `scripts/evaluate-embedding.mjs` — bundled MiniLM checksum and CPU qualification harness

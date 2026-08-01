@@ -27,7 +27,7 @@ Sky River Machine creates bounded workspace suggestions from tab context instead
 
 Why this matters: a GitHub repository, a documentation page, a tutorial, and a project discussion can belong to one task even when they come from different sites, while two tabs on the same site can belong to different tasks.
 
-Current honesty boundary: the model adapter and structured-output validation exist, but no local model has passed the current qualification gate yet. The shipped fallback is bounded and local; the final semantic-model claim remains pending model qualification.
+Current honesty boundary: the bundled MiniLM embedding path has passed the local CPU checksum/relatedness probe. It is a semantic relatedness aid, not a generated workspace-name or universal multilingual claim; browser-WASM, representative quality, and low-resource gates remain open. The bounded heuristic fallback remains local and safe.
 
 ### 2. Keep useful tabs without keeping every page live
 
@@ -66,7 +66,7 @@ The current implementation includes:
 - ranked search, duplicate review, and correction records;
 - Home, Search, Workspaces, Recovery, and Settings surfaces;
 - visible-context controls, deletion, export, and local privacy boundaries;
-- 38 focused automated tests across 8 test files;
+- 42 focused automated tests across 10 test files;
 - passing TypeScript checks, Chromium/Firefox builds, artifact audit, and offline production dependency audit.
 
 ## Suggested judge demonstration
@@ -95,7 +95,7 @@ The implementation treats browsing state as valuable user data rather than dispo
 - Operations checkpoint recovery information before mutation.
 - Partial browser failures are surfaced instead of being reported as atomic success.
 - Model timeout and unavailability fall back safely instead of freezing the extension.
-- Permissions are limited to the current feature slice; there are no host permissions, remote model calls, analytics, or runtime-fetched code.
+- Permissions are limited to the current feature slice; the bundled MiniLM path makes no remote model calls, and there are no host permissions, analytics, or runtime-fetched code.
 - Synthetic fixtures are used for tests and smoke work.
 
 ## Effort and delivery evidence
@@ -117,7 +117,7 @@ Observed engineering evidence:
 - This is not yet a supported release.
 - Chromium browser smoke is blocked in the current managed environment and must be rerun on a normal development machine.
 - Full Firefox restart, private-window, permission-denial, sidebar, and low-resource gates remain open.
-- No local model is bundled because the tested q4f16 and q8 candidates failed current initialization/structured-output/latency gates.
+- The rejected q4f16/q8 generative candidates are not bundled; MiniLM is bundled for the semantic embedding path, with browser-WASM, multilingual, and representative resource gates still open.
 - Representative large-session performance, storage-pressure, and fault-injection evidence remains to be collected.
 
 These limitations do not erase the usable core. They define what must be proven before making a release or cross-browser support claim.
@@ -127,7 +127,7 @@ These limitations do not erase the usable core. They define what must be proven 
 - [ ] Replace the effort placeholder with verified evidence showing at least three hours.
 - [ ] Run the synthetic Chromium demo on the other machine.
 - [ ] Complete the remaining Firefox release checks.
-- [ ] Qualify a compatible local model or clearly submit the fallback-only state.
+- [x] Qualify and bundle a small compatible local embedding path; [ ] finish browser-WASM, multilingual, and representative-resource evidence.
 - [ ] Collect representative performance and fault-recovery evidence.
 - [ ] Update release-status documentation with observed results.
 - [ ] Run final checks, commit, push, and verify the remote commit.

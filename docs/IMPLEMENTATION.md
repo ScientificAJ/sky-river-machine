@@ -14,14 +14,14 @@ Implemented locally:
 - read-only inventory, local workspace creation/editing, metadata search, record deletion, and all three protection controls;
 - a centralized mutation guard and approval-first lifecycle operations; automation remains off;
 - serialized inventory refreshes so overlapping browser events cannot write stale snapshots concurrently.
-- checkpointed lifecycle operations, restore/archive/rest/delete paths, bounded heuristic suggestions, model-unavailable contracts, validated model-response fallback, correction records, and explicit visible-context/export/delete controls.
-- strict extension-message validation, explicit workspace deletion/data inspection, bounded model requests, paged background search, conservative startup recovery for planned/applying operations, and a reproducible offline model-evaluation command.
+- checkpointed lifecycle operations, restore/archive/rest/delete paths, bounded heuristic fallback, local MiniLM embedding suggestions, validated model-response fallback, correction records, and explicit visible-context/export/delete controls.
+- strict extension-message validation, explicit workspace deletion/data inspection, bounded model requests, paged background search, conservative startup recovery for planned/applying operations, a reproducible embedding evaluation command, and bundled offline model assets.
 - manual workspace/protection changes are journaled; deleting a record prunes its suggestion and correction references; pinned and loading tabs are protected from lifecycle mutation.
 - Permanent record deletion journals no reversible URL snapshot, and startup recovery scrubs any legacy delete snapshot before retaining its outcome.
 - heuristic proposal review supports bounded rename, reassignment, split/merge-by-assignment, reject, and leave-unchanged decisions before local application.
 - token- and stored-context-ranked local search, correction-informed heuristic naming, and explicit duplicate keep/dismiss/archive review are implemented; extension-owned pages stay out of the inventory.
 
-Focused automated tests are part of implementation verification. `npm run evaluate:model` records candidate model gates separately; q4f16 fails before inference and q8 runs but fails the structured-output and latency probes, so neither is bundled. Firefox 153 smoke is recorded below; a passing focused suite or one browser smoke run does not establish cross-browser support.
+Focused automated tests are part of implementation verification. `npm run evaluate:model` records rejected generative candidates and `npm run evaluate:embedding` qualifies the bundled MiniLM artifact; Firefox 153 smoke is recorded below. A passing focused suite or one browser smoke run does not establish cross-browser support.
 
 Build commands:
 
@@ -31,7 +31,7 @@ npm run build:chromium
 npm run build:firefox
 ```
 
-The unpacked outputs are `dist/chromium` and `dist/firefox`. The Chromium manifest uses a Manifest V3 service worker. The Firefox manifest uses a background script entry. Both request only the documented tab metadata and user-invoked context permissions; there are no host permissions, persistent content scripts, model assets, remote URLs, or analytics.
+The unpacked outputs are `dist/chromium` and `dist/firefox`. The Chromium manifest uses a Manifest V3 service worker. The Firefox manifest uses a background script entry. Both request only the documented tab metadata and user-invoked context permissions; the MiniLM model, tokenizer/config, and ONNX runtime are packaged locally, with no host permissions, persistent content scripts, remote model loading, or analytics.
 
 Permission record:
 

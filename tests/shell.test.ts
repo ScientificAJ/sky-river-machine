@@ -11,7 +11,7 @@ test('the first-run shell stays truthful and mutation-free', () => {
   expect(app).toContain('under construction');
   expect(app).toContain("'workspaces'");
   expect(app).toContain("'recovery'");
-  expect(app).toContain('Local model status: unavailable');
+  expect(app).toContain('Local semantic model: MiniLM embeddings');
   expect(app).toContain('disabled');
   expect(app).not.toMatch(/tabs\.(remove|discard|move)/);
   expect(firefoxManifest.background?.type).toBe('module');

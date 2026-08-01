@@ -28,7 +28,7 @@ This documentation describes what we are going to build. It is an implementation
 
 ## What remains deliberately open
 
-- Qwen2.5-0.5B-Instruct remains the documented evaluation baseline; the current pinned SmolLM2 ONNX CPU candidates are recorded in [`MODEL_EVALUATION.md`](MODEL_EVALUATION.md) and did not pass the release gates. No model is bundled until a local artifact passes representative quality, resource, and licensing checks.
+- The bundled model path uses the pinned Apache-2.0 MiniLM embedding artifact documented in [`MODEL_EVALUATION.md`](MODEL_EVALUATION.md). The rejected SmolLM2 generative candidates remain historical evidence; multilingual quality, browser WASM verification, and representative resource gates remain open.
 - A native companion process is not part of the first architecture. It may be added later behind the same model-runner interface if browser-only inference is insufficient.
 - Exact default thresholds are calibration values, not product identity. They belong in settings and performance tests.
 

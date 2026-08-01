@@ -58,35 +58,30 @@ Responses must be structured, schema-validated, size-limited, and discarded if m
 
 ## 4. Model/runtime strategy
 
-### Selected first model
+### Selected model: MiniLM embeddings
 
-Use **Qwen2.5-0.5B-Instruct** as the first implementation and evaluation baseline. `ModelRunner` should load the ONNX conversion `onnx-community/Qwen2.5-0.5B-Instruct` through Transformers.js and ONNX Runtime Web.
+The current implementation uses **Xenova/all-MiniLM-L6-v2** as a local embedding model, loaded with Transformers.js and ONNX Runtime Web. It produces 384-dimensional normalized vectors instead of free-form text, which removes the unreliable JSON-generation failure observed with the smaller generative candidates.
 
-This model is the best current fit because it is small enough to test on-device (0.49B parameters), is Apache-2.0 licensed, supports more than 29 languages, and was explicitly trained to follow instructions and produce structured output, especially JSON. Transformers.js documents this exact ONNX model running with 4-bit quantization on WebGPU and supports local model paths, CPU inference through WebAssembly, and disabling remote model access.
+The packaged artifact is `public/models/minilm/onnx/model_quantized.onnx` (22,972,370 bytes), pinned to revision `751bff37182d3f1213fa05d7196b954e230abad9` with SHA-256 `afdb6f1a0e45b715d0bb9b11772f032c399babd23bfc31fed1c170afc848bdb1`. The model is bundled with its tokenizer/config files and Apache-2.0 license text. Remote model loading is disabled; the extension has no hosted-model fallback.
 
-Start evaluation with `q4f16` on WebGPU and `q8` on WebAssembly. These are runtime artifacts of the same model, not separate organization behaviors. Pin the chosen artifact revision and checksum, package the model and matching WASM runtime locally, and disable remote model loading. Never fall back to a hosted model.
+`relateTabs` embeds bounded title/URL metadata, clusters vectors with cosine similarity at threshold `0.52`, and emits the existing validated suggestion schema. Group names remain deterministic and reviewable; the model chooses relatedness, never a browser action. Empty, malformed, cancelled, oversized, or slow inference falls back to the bounded heuristic path.
 
-The public ONNX artifacts are currently about 483 MB for `q4f16` and 512 MB for `q8`, before tokenizer and runtime files. Treat the model as the optional local model package described below rather than silently inflating the base extension. Do not ship both artifacts unless cross-browser measurements prove that both are necessary.
-
-This is an implementation baseline, not a release-quality claim. It must pass the representative fixture evaluation in [TESTING_PERFORMANCE.md](TESTING_PERFORMANCE.md) on low-end CPU-only and normal WebGPU profiles. Measure grouping quality, structured-output validity, multilingual behavior, cold start, task latency, peak memory, cancellation, and adversarial metadata handling. Replace it behind `ModelRunner` if it misses the measured budgets or quality bar; heuristic mode remains available throughout.
+The reproducible `npm run evaluate:embedding` probe on Node v24.18.0 loaded the artifact in 121 ms, completed the synthetic batch in 16 ms, and returned 384-dimensional vectors. Related browser-extension texts scored `0.694`; an unrelated recipe scored `0.220`. These are qualification fixtures, not a universal semantic or multilingual quality claim. The model is English-oriented, so multilingual quality and representative browser-scale performance remain release gates.
 
 Sources checked 2026-08-01:
 
-- [Qwen2.5-0.5B-Instruct model card](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)
-- [Transformers.js quantization guide](https://huggingface.co/docs/transformers.js/en/guides/dtypes)
+- [all-MiniLM-L6-v2 model card](https://huggingface.co/Xenova/all-MiniLM-L6-v2)
 - [Transformers.js local-model configuration](https://huggingface.co/docs/transformers.js/main/en/custom_usage)
-- [ONNX artifact sizes](https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct/tree/main/onnx)
+- [Transformers.js data types](https://huggingface.co/docs/transformers.js/en/guides/dtypes)
 
-The first implementation should target a very small quantized model that can run:
+The runtime is selected for old-hardware compatibility:
 
-- CPU-only through WebAssembly.
-- With WebGPU acceleration when available.
-- Offline, with no model download after installation.
-- In a bounded worker with one active model instance.
+- CPU-only execution works in the Node qualification harness.
+- Browser builds default to the runtime's WebAssembly path; WebGPU is not required.
+- All model and ONNX runtime assets are packaged locally after installation.
+- One lazy, bounded model instance serves one batch at a time.
 
-If packaging the model inside the extension makes the install too large, ship a small base capability and let the user explicitly install an additional local model package. The feature must still run in heuristic mode.
-
-A native local service is deferred. If it becomes necessary, it must remain optional, local-only, signed/discoverable, and hidden behind the same `ModelRunner` interface.
+The 135M/360M SmolLM and 0.5B Qwen generative candidates remain documented as rejected or unevaluated alternatives. A native local service is deferred and, if ever added, must remain optional, local-only, and hidden behind the same `ModelRunner` interface.
 
 ## 5. Queue and backpressure
 

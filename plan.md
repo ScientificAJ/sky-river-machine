@@ -1,7 +1,7 @@
 # Sky River Machine implementation plan
 
-> Status: implementation roadmap. The repository now contains local slices through the foundation, lifecycle, bounded analysis fallback, privacy controls, UI surfaces, synthetic scale fixtures, and reproducible local-model evaluation gates. The tested q4f16 and q8 candidates did not pass the runtime/structured-output gates. Firefox smoke is recorded, while Chromium smoke and representative release performance/fault injection remain separately recorded in [`docs/RELEASE_STATUS.md`](docs/RELEASE_STATUS.md); no browser support or release claim is implied here.
-> The q8 candidate qualification was reproduced on 2026-08-01 and still failed the structured-output gate; this does not change the fallback-only release boundary.
+> Status: implementation roadmap. The repository now contains local slices through the foundation, lifecycle, bounded semantic analysis with a bundled MiniLM embedding model, privacy controls, UI surfaces, synthetic scale fixtures, and reproducible local-model gates. Firefox smoke is recorded, while Chromium smoke and representative release performance/fault injection remain separately recorded in [`docs/RELEASE_STATUS.md`](docs/RELEASE_STATUS.md); no browser support or release claim is implied here.
+> The q4f16/q8 generative candidates failed their gates; MiniLM passed the local CPU embedding probe and is now the packaged semantic path with heuristic fallback.
 
 ## 1. What this plan is for
 
@@ -750,7 +750,7 @@ Use an established runtime schema validator after reviewing bundle size and exte
 
 ### 11.3 Evaluate the documented baseline
 
-The current documented baseline is Qwen2.5-0.5B-Instruct through Transformers.js and ONNX Runtime Web. Treat it as a candidate to measure, not a guaranteed release dependency.
+The current documented baseline is the bundled Xenova/all-MiniLM-L6-v2 embedding model through Transformers.js and ONNX Runtime Web. It is a measured development dependency, not a universal quality or browser-support claim.
 
 Evaluate:
 
@@ -1340,7 +1340,7 @@ These are real possibilities, but they should not be built until the documented 
 | Deferred item | Why it is deferred | Reconsider when |
 | --- | --- | --- |
 | Native companion process | Installation, signing, permissions, updates, and cross-browser complexity | Browser-only model evaluation cannot meet measured quality/performance budgets |
-| Local embeddings | Token search must remain sufficient and package/memory cost is unknown | Measured search fixtures show a meaningful retrieval gap that reranking cannot solve |
+| Richer multilingual embeddings | The bundled MiniLM path is English-oriented and intentionally small | Representative multilingual fixtures show a meaningful quality gap that a larger local package can justify |
 | Continuous page-context access | Broad permission and privacy impact | User-invoked extraction proves value and a reviewed feature needs continuous context |
 | Encryption-at-rest archive | Key recovery and data-loss design is separate | A validated threat/user need justifies the complete key/recovery UX |
 | Cloud sync/account/backend | Conflicts with the local-only initial architecture | Product direction is explicitly changed with a new privacy/security architecture |

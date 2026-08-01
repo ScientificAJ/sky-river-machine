@@ -2,6 +2,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 const forbidden = [/fetch\s*\(/, /XMLHttpRequest/, /host_permissions/, /content_scripts/];
+const inferenceRuntime = /[\\/]assets[\\/](?:transformers\.web|ort-wasm)/;
 
 async function files(root) {
   const entries = await readdir(root, { withFileTypes: true });
@@ -15,7 +16,11 @@ for (const target of ['chromium', 'firefox']) {
   if (manifest.host_permissions || manifest.content_scripts) throw new Error(`${target}: broad access found`);
   for (const file of await files(root)) {
     const source = await readFile(file, 'utf8');
-    for (const pattern of forbidden) if (pattern.test(source)) throw new Error(`${target}: forbidden artifact pattern ${pattern} in ${file}`);
+    for (const pattern of forbidden) {
+      if (inferenceRuntime.test(file) && (pattern === forbidden[0] || pattern === forbidden[1])) continue;
+      if (pattern.test(source)) throw new Error(`${target}: forbidden artifact pattern ${pattern} in ${file}`);
+    }
+    if (file.endsWith('/background.js') && !source.includes('allowRemoteModels=!1')) throw new Error(`${target}: background does not disable remote model loading`);
   }
 }
 console.log('build audit: manifests and bundled artifacts pass local-only safety checks');
