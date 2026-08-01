@@ -52,7 +52,7 @@ async function refreshInventoryOnce(): Promise<InventoryResponse> {
     const pending = await store.listOperations(['planned', 'applying']);
     for (const operation of pending) {
       const result = recoverOperation(operation, records, tabs);
-      if (result) await store.putOperation({ ...operation, status: result.status, error: result.error, completedAt: Date.now() });
+      if (result) await store.putOperation({ ...operation, before: operation.kind === 'delete' ? [] : operation.before, status: result.status, error: result.error, completedAt: Date.now() });
     }
     return { ok: true, records: records.slice(0, BUDGETS.searchPageSize), total: records.length };
   } catch {

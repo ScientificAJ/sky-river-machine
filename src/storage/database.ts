@@ -184,7 +184,7 @@ export class IndexedDbTabStore {
   async delete(recordId: string): Promise<void> {
     const database = await this.open();
     await new Promise<void>((resolve, reject) => {
-      const transaction = database.transaction([TAB_STORE, SUGGESTION_STORE, CORRECTION_STORE], 'readwrite');
+      const transaction = database.transaction([TAB_STORE, SUGGESTION_STORE, CORRECTION_STORE, OPERATION_STORE], 'readwrite');
       transaction.objectStore(TAB_STORE).delete(recordId);
       const suggestions = transaction.objectStore(SUGGESTION_STORE);
       const suggestionRequest = suggestions.getAll();
@@ -211,6 +211,17 @@ export class IndexedDbTabStore {
         }
       };
       correctionRequest.onerror = () => reject(new Error('Corrections could not be cleaned up'));
+      const operations = transaction.objectStore(OPERATION_STORE);
+      const operationRequest = operations.getAll();
+      operationRequest.onsuccess = () => {
+        for (const operation of operationRequest.result as Operation[]) {
+          const targetRecordIds = operation.targetRecordIds.filter((id) => id !== recordId);
+          const before = operation.before.filter((snapshot) => snapshot.recordId !== recordId);
+          if (!targetRecordIds.length) operations.delete(operation.operationId);
+          else operations.put({ ...operation, targetRecordIds, before });
+        }
+      };
+      operationRequest.onerror = () => reject(new Error('Recovery operations could not be cleaned up'));
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(new Error('Local tab record could not be deleted'));
       transaction.onabort = () => reject(new Error('Local tab record deletion was aborted'));

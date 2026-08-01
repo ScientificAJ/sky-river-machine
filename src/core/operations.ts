@@ -11,7 +11,7 @@ export function planOperation(
     operationId: crypto.randomUUID(),
     kind,
     targetRecordIds: [record.recordId],
-    before: [{ recordId: record.recordId, browserTabId: record.browserTabId, windowId: record.windowId, state: record.state, url: record.url, workspaceId: record.workspaceId, protection: record.protection }],
+    before: kind === 'delete' ? [] : [{ recordId: record.recordId, browserTabId: record.browserTabId, windowId: record.windowId, state: record.state, url: record.url, workspaceId: record.workspaceId, protection: record.protection }],
     after,
     browserPlan: { action, tabIds: record.browserTabId === null ? [] : [record.browserTabId] },
     status: 'planned',

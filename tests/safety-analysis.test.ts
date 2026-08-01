@@ -36,3 +36,7 @@ test('operation planning snapshots the reversible state before mutation', () => 
   expect(operation.before).toEqual([expect.objectContaining({ recordId: record.recordId, browserTabId: 7, url: record.url, state: 'Active' })]);
   expect(operation.browserPlan).toEqual({ action: 'close', tabIds: [7] });
 });
+
+test('delete planning does not retain a restoration URL', () => {
+  expect(planOperation('delete', record, 'none', {}, 42).before).toEqual([]);
+});
