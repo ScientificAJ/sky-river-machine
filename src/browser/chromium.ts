@@ -30,6 +30,18 @@ export function createChromiumAdapter(): BrowserAdapter {
       browser.tabs.onActivated?.addListener(({ tabId }) => listener({ kind: 'activated', browserTabId: tabId }));
       browser.tabs.onRemoved?.addListener((tabId) => listener({ kind: 'removed', browserTabId: tabId }));
     },
-    getCapabilities: () => ({ queryTabs: true, observeTabEvents: true }),
+    getCapabilities: () => ({ queryTabs: true, observeTabEvents: true, activateTab: true, createTab: true, closeTab: true, nativeDiscard: Boolean(browser.tabs.discard) }),
+    async getTab(tabId) { return normalizeTab(await browser.tabs.get(tabId)); },
+    async activateTab(tabId) { return normalizeTab(await browser.tabs.update(tabId, { active: true }))!; },
+    async createTab(url) { return normalizeTab(await browser.tabs.create({ url }))!; },
+    async closeTab(tabId) { await browser.tabs.remove(tabId); },
+    async discardTab(tabId) { return browser.tabs.discard ? normalizeTab(await browser.tabs.discard(tabId)) : null; },
+    async extractVisibleContext(tabId) {
+      if (!browser.tabs.executeScript) throw new Error('Visible page context is unavailable');
+      const [result] = await browser.tabs.executeScript(tabId, { code: `(() => ({ headings: [...document.querySelectorAll('h1,h2')].map((node) => (node.textContent || '').trim()).filter(Boolean).slice(0, 8), description: (document.querySelector('meta[name="description"]')?.getAttribute('content') || '').trim().slice(0, 500) }))()` });
+      const value = result?.result;
+      if (!value || typeof value !== 'object') throw new Error('Visible page context was malformed');
+      return { headings: Array.isArray((value as { headings?: unknown }).headings) ? (value as { headings: unknown[] }).headings.filter((item): item is string => typeof item === 'string').slice(0, 8) : [], description: typeof (value as { description?: unknown }).description === 'string' ? (value as { description: string }).description.slice(0, 500) : '' };
+    },
   };
 }

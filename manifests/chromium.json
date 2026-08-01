@@ -3,7 +3,7 @@
   "name": "Sky River Machine",
   "version": "0.0.0",
   "description": "A local development shell for a recoverable browser workspace.",
-  "permissions": ["tabs"],
+  "permissions": ["tabs", "activeTab", "scripting"],
   "background": {
     "service_worker": "background.js"
   },

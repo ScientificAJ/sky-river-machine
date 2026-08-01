@@ -1,7 +1,7 @@
 import { render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { refreshInventory, sendMessage } from '../browser/extension-client';
-import type { InventoryResponse, TabRecord, Workspace } from '../shared/types';
+import type { InventoryResponse, SuggestionBatch, TabRecord, Workspace } from '../shared/types';
 import { searchMetadata } from '../core/search';
 import './styles.css';
 
@@ -10,18 +10,22 @@ function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [query, setQuery] = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
+  const [suggestions, setSuggestions] = useState<SuggestionBatch[]>([]);
+  const [recovery, setRecovery] = useState(0);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
   const load = async () => {
     setStatus('loading');
     try {
-      const [response, workspaceResponse] = await Promise.all([refreshInventory(), sendMessage({ type: 'list-workspaces' })]);
+      const [response, workspaceResponse, suggestionResponse, recoveryResponse] = await Promise.all([refreshInventory(), sendMessage({ type: 'list-workspaces' }), sendMessage({ type: 'get-suggestions' }), sendMessage({ type: 'get-recovery' })]);
       if (!response.ok) throw new Error(response.error);
       if (!('records' in response)) throw new Error('Inventory response was incomplete');
       if (!workspaceResponse.ok) throw new Error(workspaceResponse.error);
       if (!('workspaces' in workspaceResponse)) throw new Error('Workspace response was incomplete');
       setRecords(response.records);
       setWorkspaces(workspaceResponse.workspaces);
+      if (suggestionResponse.ok && 'suggestions' in suggestionResponse) setSuggestions(suggestionResponse.suggestions);
+      if (recoveryResponse.ok && 'recovery' in recoveryResponse) setRecovery(recoveryResponse.recovery.length);
       setStatus('ready');
     } catch {
       setStatus('error');
@@ -39,11 +43,59 @@ function App() {
     setWorkspaceName('');
   };
 
-  const visibleRecords = searchMetadata(records, workspaces, query).filter((record) => record.state !== 'Extinct');
+  const visibleRecords = searchMetadata(records, workspaces, query);
 
   const setProtection = async (record: TabRecord) => {
     const response = await sendMessage({ type: 'set-protection', recordId: record.recordId, important: !record.protection.important });
     if (response.ok && 'records' in response) setRecords(response.records);
+  };
+
+  const lifecycle = async (record: TabRecord, action: 'wake' | 'rest' | 'archive' | 'restore') => {
+    const confirm = action === 'archive' ? window.confirm(`Archive “${record.title}”? The record will remain restorable.`) : undefined;
+    if (action === 'archive' && !confirm) return;
+    const response = await sendMessage({ type: 'lifecycle', recordId: record.recordId, action, ...(confirm === undefined ? {} : { confirm }) });
+    if (response.ok && 'records' in response) setRecords((current) => current.map((item) => response.records.find((updated) => updated.recordId === item.recordId) ?? item));
+    else if (!response.ok) window.alert(response.error);
+    await load();
+  };
+
+  const organize = async () => {
+    const response = await sendMessage({ type: 'organize-heuristically' });
+    if (response.ok && 'suggestions' in response) setSuggestions(response.suggestions);
+  };
+
+  const applySuggestion = async (suggestionId: string) => {
+    const response = await sendMessage({ type: 'apply-suggestion', suggestionId });
+    if (response.ok && 'records' in response) { setRecords(response.records); if ('workspaces' in response) setWorkspaces(response.workspaces); }
+    await load();
+  };
+
+  const rejectSuggestion = async (suggestionId: string) => {
+    const response = await sendMessage({ type: 'reject-suggestion', suggestionId });
+    if (response.ok && 'suggestions' in response) setSuggestions((current) => current.map((item) => response.suggestions.find((next) => next.suggestionId === item.suggestionId) ?? item));
+  };
+
+  const extractContext = async (record: TabRecord) => {
+    if (!window.confirm('Read only visible headings and the page description for this selected tab? This stays local and is stored until deleted.')) return;
+    const response = await sendMessage({ type: 'extract-visible-context', recordId: record.recordId, confirm: true });
+    if (response.ok && 'records' in response) setRecords((current) => current.map((item) => response.records.find((updated) => updated.recordId === item.recordId) ?? item));
+    else if (!response.ok) window.alert(response.error);
+  };
+
+  const exportData = async () => {
+    const response = await sendMessage({ type: 'export-data' });
+    if (!response.ok || !('data' in response)) return;
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([response.data], { type: 'application/json' }));
+    link.download = 'sky-river-machine-local-export.json';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  const deleteAll = async () => {
+    if (!window.confirm('Delete all Sky River Machine local records, suggestions, and recovery data? This cannot erase browser history.')) return;
+    const response = await sendMessage({ type: 'delete-all', confirm: true });
+    if (response.ok) { setRecords([]); setWorkspaces([]); setSuggestions([]); setRecovery(0); setStatus('ready'); }
   };
 
   return (
@@ -51,8 +103,10 @@ function App() {
       <p class="eyebrow">Local browser workspace</p>
       <h1>Sky River Machine</h1>
       <p class="lede">This development build is under construction.</p>
-      <p class="quiet">This early local inventory view reads tab metadata only. It does not move, close, archive, or analyze your tabs.</p>
+      <p class="quiet">This early local view reads tab metadata only. It does not read page contents or make consequential browser changes without your review.</p>
       <button type="button" onClick={() => void load()} disabled={status === 'loading'}>Refresh local tab metadata</button>
+      <button type="button" onClick={() => void organize()} disabled={status !== 'ready'}>Organize tabs (heuristic suggestions)</button>
+      {recovery > 0 && <p class="recovery" role="alert">{recovery} operation{recovery === 1 ? '' : 's'} need recovery review.</p>}
       <label class="field">Search local metadata<input value={query} onInput={(event) => setQuery((event.currentTarget as HTMLInputElement).value)} placeholder="Title, domain, URL, workspace" /></label>
       <p class="status" role="status" aria-live="polite">
         {status === 'loading' && 'Reading permitted tab metadata locally…'}
@@ -66,9 +120,23 @@ function App() {
             <strong>{record.title}</strong>
             <span>{record.domain} · {record.state}{record.protection.important ? ' · Protected' : ''}</span>
             <button type="button" onClick={() => void setProtection(record)}>{record.protection.important ? 'Remove protection' : 'Protect tab'}</button>
+            {record.state === 'Dormant' && <button type="button" onClick={() => void lifecycle(record, 'wake')}>Wake tab</button>}
+            {record.state === 'Extinct' && <button type="button" onClick={() => void lifecycle(record, 'restore')}>Restore tab</button>}
+            {record.state === 'Active' && <button type="button" onClick={() => void lifecycle(record, 'rest')}>Let tab rest</button>}
+            {record.state !== 'Extinct' && <button type="button" onClick={() => void lifecycle(record, 'archive')}>Archive tab</button>}
+            {record.state !== 'Extinct' && <button type="button" onClick={() => void extractContext(record)}>Read visible context</button>}
+            {record.context && <span>Visible context stored locally: {record.context.headings.length} heading{record.context.headings.length === 1 ? '' : 's'}</span>}
           </li>
         ))}
       </ul>}
+      {suggestions.filter((suggestion) => suggestion.status === 'pending').map((suggestion) => <section class="suggestion" key={suggestion.suggestionId} aria-labelledby={`suggestion-${suggestion.suggestionId}`}>
+        <h2 id={`suggestion-${suggestion.suggestionId}`}>Suggested workspace review</h2>
+        <p class="quiet">These are bounded metadata suggestions. Review them before applying; no browser tabs move during this step.</p>
+        {suggestion.workspaceProposals.slice(0, 6).map((proposal) => <p class="workspace-row" key={`${suggestion.suggestionId}-${proposal.name}`}>{proposal.name} · {proposal.recordIds.length} tabs · {Math.round(proposal.confidence * 100)}% confidence</p>)}
+        {suggestion.duplicateCandidates.length > 0 && <p class="quiet">Possible duplicates: {suggestion.duplicateCandidates.length}. Nothing will close automatically.</p>}
+        <button type="button" onClick={() => void applySuggestion(suggestion.suggestionId)}>Apply workspace suggestions</button>
+        <button type="button" onClick={() => void rejectSuggestion(suggestion.suggestionId)}>Reject suggestion</button>
+      </section>)}
       <section class="workspace-section" aria-labelledby="workspace-heading">
         <h2 id="workspace-heading">Local workspaces</h2>
         <form onSubmit={(event) => void createWorkspace(event)}>
@@ -76,6 +144,12 @@ function App() {
           <button type="submit">Create workspace</button>
         </form>
         {workspaces.filter((workspace) => !workspace.archivedAt).map((workspace) => <p class="workspace-row" key={workspace.workspaceId}>{workspace.name}</p>)}
+      </section>
+      <section class="workspace-section" aria-labelledby="privacy-heading">
+        <h2 id="privacy-heading">Local data controls</h2>
+        <p class="quiet">Metadata is local by default. Visible context is optional, bounded, and deletable. No private-window data is captured.</p>
+        <button type="button" onClick={() => void exportData()}>Export local data</button>
+        <button type="button" onClick={() => void deleteAll()}>Delete all local data</button>
       </section>
       <p class="quiet">Only local metadata is stored. Page contents are not read.</p>
     </main>

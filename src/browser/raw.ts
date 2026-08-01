@@ -15,6 +15,12 @@ export type RawTab = {
 
 export type RawTabsApi = {
   query(queryInfo: { windowType: string }): Promise<RawTab[]>;
+  get(tabId: number): Promise<RawTab>;
+  update(tabId: number, properties: { active?: boolean }): Promise<RawTab>;
+  create(properties: { url: string }): Promise<RawTab>;
+  remove(tabId: number): Promise<void>;
+  discard?(tabId: number): Promise<RawTab>;
+  executeScript?(tabId: number, details: { code: string }): Promise<Array<{ result?: unknown }> >;
   onCreated?: { addListener(listener: (tab: RawTab) => void): void };
   onUpdated?: { addListener(listener: (tabId: number, changeInfo: unknown, tab: RawTab) => void): void };
   onActivated?: { addListener(listener: (info: { tabId: number; windowId: number }) => void): void };

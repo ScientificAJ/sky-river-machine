@@ -13,6 +13,7 @@ Implemented locally:
 - read-only inventory, local workspace creation, metadata search, and protection controls;
 - a centralized mutation guard, while browser lifecycle mutation and automation remain unimplemented;
 - serialized inventory refreshes so overlapping browser events cannot write stale snapshots concurrently.
+- checkpointed lifecycle operations, restore/archive/rest/delete paths, bounded heuristic suggestions, model-unavailable contracts, and explicit visible-context/export/delete controls.
 
 Testing execution is intentionally deferred to the project-wide testing pass requested by the project owner. Typechecking, builds, artifact inspection, and diff checks remain part of implementation verification.
 
@@ -30,7 +31,9 @@ Permission record:
 
 | Permission | Feature that needs it | Requested now? | Behavior when denied/absent |
 | --- | --- | --- | --- |
-| `tabs` | Query permitted normal-window tab metadata | Yes | Show the local inventory error state and allow retry |
+| `tabs` | Query permitted normal-window tab metadata and lifecycle handles | Yes | Show the local inventory error state and allow retry |
+| `activeTab` | User-invoked visible headings/description extraction | Yes | Metadata-only mode remains usable |
+| `scripting` | Execute the bounded user-invoked extraction | Yes | Metadata-only mode remains usable |
 | `storage` | Small settings/bootstrap markers | No | Not applicable in this slice |
 | `alarms` | Scheduled reconciliation | No | Startup and relevant observed events only |
 | `activeTab` | User-invoked page context | No | Metadata-only view remains the whole available surface |

@@ -1,9 +1,12 @@
-import type { TabRecord, Workspace } from '../shared/types';
+import type { Operation, SuggestionBatch, TabRecord, UserCorrection, Workspace } from '../shared/types';
 
 const DATABASE_NAME = 'sky-river-machine';
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 const TAB_STORE = 'tabRecords';
 const WORKSPACE_STORE = 'workspaces';
+const OPERATION_STORE = 'operations';
+const SUGGESTION_STORE = 'suggestions';
+const CORRECTION_STORE = 'corrections';
 
 export class IndexedDbTabStore {
   private database?: Promise<IDBDatabase>;
@@ -24,6 +27,12 @@ export class IndexedDbTabStore {
           const store = database.createObjectStore(WORKSPACE_STORE, { keyPath: 'workspaceId' });
           store.createIndex('archivedAt', 'archivedAt');
         }
+        if (!database.objectStoreNames.contains(OPERATION_STORE)) {
+          const store = database.createObjectStore(OPERATION_STORE, { keyPath: 'operationId' });
+          store.createIndex('status', 'status');
+        }
+        if (!database.objectStoreNames.contains(SUGGESTION_STORE)) database.createObjectStore(SUGGESTION_STORE, { keyPath: 'suggestionId' });
+        if (!database.objectStoreNames.contains(CORRECTION_STORE)) database.createObjectStore(CORRECTION_STORE, { keyPath: 'correctionId' });
       };
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(new Error('Local tab storage could not be opened'));
@@ -102,6 +111,133 @@ export class IndexedDbTabStore {
       request.onerror = () => reject(new Error('Tab record could not be read for protection change'));
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(new Error('Tab record protection could not be saved'));
+    });
+  }
+
+  async updateRecordContext(recordId: string, context: NonNullable<TabRecord['context']>): Promise<TabRecord> {
+    const record = await this.get(recordId);
+    if (!record) throw new Error('Tab record no longer exists');
+    const updated = { ...record, context, updatedAt: Date.now(), revision: record.revision + 1 };
+    await this.put(updated);
+    return updated;
+  }
+
+  async clearAll(): Promise<void> {
+    const database = await this.open();
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction([TAB_STORE, WORKSPACE_STORE, OPERATION_STORE, SUGGESTION_STORE, CORRECTION_STORE], 'readwrite');
+      for (const name of [TAB_STORE, WORKSPACE_STORE, OPERATION_STORE, SUGGESTION_STORE, CORRECTION_STORE]) transaction.objectStore(name).clear();
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(new Error('Local data could not be cleared'));
+    });
+  }
+
+  async exportAll(): Promise<{ records: TabRecord[]; workspaces: Workspace[]; operations: Operation[]; suggestions: SuggestionBatch[] }> {
+    return { records: await this.list(), workspaces: await this.listWorkspaces(), operations: await this.listOperations(), suggestions: await this.listSuggestions() };
+  }
+
+  async get(recordId: string): Promise<TabRecord | undefined> {
+    const database = await this.open();
+    return await new Promise((resolve, reject) => {
+      const request = database.transaction(TAB_STORE, 'readonly').objectStore(TAB_STORE).get(recordId);
+      request.onsuccess = () => resolve(request.result as TabRecord | undefined);
+      request.onerror = () => reject(new Error('Local tab record could not be read'));
+    });
+  }
+
+  async put(record: TabRecord): Promise<void> {
+    const database = await this.open();
+    await new Promise<void>((resolve, reject) => {
+      const request = database.transaction(TAB_STORE, 'readwrite').objectStore(TAB_STORE).put(record);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(new Error('Local tab record could not be saved'));
+    });
+  }
+
+  async updateRecordState(recordId: string, state: TabRecord['state'], browserTabId: number | null, windowId: number | null): Promise<TabRecord> {
+    const record = await this.get(recordId);
+    if (!record) throw new Error('Tab record no longer exists');
+    const updated = { ...record, state, browserTabId, windowId, updatedAt: Date.now(), revision: record.revision + 1 };
+    await this.put(updated);
+    return updated;
+  }
+
+  async delete(recordId: string): Promise<void> {
+    const database = await this.open();
+    await new Promise<void>((resolve, reject) => {
+      const request = database.transaction(TAB_STORE, 'readwrite').objectStore(TAB_STORE).delete(recordId);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(new Error('Local tab record could not be deleted'));
+    });
+  }
+
+  async putOperation(operation: Operation): Promise<void> {
+    const database = await this.open();
+    await new Promise<void>((resolve, reject) => {
+      const request = database.transaction(OPERATION_STORE, 'readwrite').objectStore(OPERATION_STORE).put(operation);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(new Error('Operation journal could not be saved'));
+    });
+  }
+
+  async getOperation(operationId: string): Promise<Operation | undefined> {
+    const database = await this.open();
+    return await new Promise((resolve, reject) => {
+      const request = database.transaction(OPERATION_STORE, 'readonly').objectStore(OPERATION_STORE).get(operationId);
+      request.onsuccess = () => resolve(request.result as Operation | undefined);
+      request.onerror = () => reject(new Error('Operation journal could not be read'));
+    });
+  }
+
+  async listOperations(statuses?: Operation['status'][]): Promise<Operation[]> {
+    const database = await this.open();
+    return await new Promise((resolve, reject) => {
+      const request = database.transaction(OPERATION_STORE, 'readonly').objectStore(OPERATION_STORE).getAll();
+      request.onsuccess = () => {
+        const operations = request.result as Operation[];
+        resolve(statuses ? operations.filter((operation) => statuses.includes(operation.status)) : operations);
+      };
+      request.onerror = () => reject(new Error('Operation journal could not be read'));
+    });
+  }
+
+  async putSuggestion(suggestion: SuggestionBatch): Promise<void> {
+    const database = await this.open();
+    await new Promise<void>((resolve, reject) => {
+      const request = database.transaction(SUGGESTION_STORE, 'readwrite').objectStore(SUGGESTION_STORE).put(suggestion);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(new Error('Suggestion could not be saved'));
+    });
+  }
+
+  async listSuggestions(): Promise<SuggestionBatch[]> {
+    const database = await this.open();
+    return await new Promise((resolve, reject) => {
+      const request = database.transaction(SUGGESTION_STORE, 'readonly').objectStore(SUGGESTION_STORE).getAll();
+      request.onsuccess = () => resolve(request.result as SuggestionBatch[]);
+      request.onerror = () => reject(new Error('Suggestions could not be read'));
+    });
+  }
+
+  async getSuggestion(suggestionId: string): Promise<SuggestionBatch | undefined> {
+    const database = await this.open();
+    return await new Promise((resolve, reject) => {
+      const request = database.transaction(SUGGESTION_STORE, 'readonly').objectStore(SUGGESTION_STORE).get(suggestionId);
+      request.onsuccess = () => resolve(request.result as SuggestionBatch | undefined);
+      request.onerror = () => reject(new Error('Suggestion could not be read'));
+    });
+  }
+
+  async updateSuggestion(suggestion: SuggestionBatch): Promise<void> {
+    await this.putSuggestion(suggestion);
+  }
+
+  async putCorrection(correction: UserCorrection): Promise<void> {
+    const database = await this.open();
+    await new Promise<void>((resolve, reject) => {
+      const request = database.transaction(CORRECTION_STORE, 'readwrite').objectStore(CORRECTION_STORE).put(correction);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(new Error('Correction could not be saved'));
     });
   }
 }
