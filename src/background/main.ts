@@ -200,9 +200,20 @@ async function handleMessage(message: InventoryMessage): Promise<InventoryRespon
       }
     }
     if (message.action === 'wake' && record.browserTabId !== null) {
-      await adapter.activateTab(record.browserTabId);
-      const updated = await store.updateRecordState(record.recordId, 'Active', record.browserTabId, record.windowId);
-      return { ok: true, operation: planOperation('lifecycle', record, 'activate', { state: 'Active' }, Date.now()), records: [updated] };
+      const operation = planOperation('lifecycle', record, 'activate', { state: 'Active' }, Date.now());
+      await store.putOperation(operation);
+      await store.putOperation({ ...operation, status: 'applying' });
+      try {
+        await adapter.activateTab(record.browserTabId);
+        const updated = await store.updateRecordState(record.recordId, 'Active', record.browserTabId, record.windowId);
+        const applied = { ...operation, status: 'applied' as const, completedAt: Date.now() };
+        await store.putOperation(applied);
+        return { ok: true, operation: applied, records: [updated] };
+      } catch {
+        const failed = { ...operation, status: 'failed' as const, error: 'The browser could not wake this tab.', completedAt: Date.now() };
+        await store.putOperation(failed);
+        return { ok: false, error: failed.error };
+      }
     }
     const mutation = message.action === 'rest' ? 'discard' : 'close';
     const decision = canMutateTab(record, mutation);
