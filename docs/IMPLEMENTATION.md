@@ -2,9 +2,19 @@
 
 This file records observed implementation state. The design and plan documents remain the product contract; this file must not turn a planned capability into a shipped claim.
 
-## Phase 0 and first slice
+## Current implementation
 
-Status: build and focused automated checks pass. Real-browser page-opening verification remains incomplete in the managed desktop environment.
+Status: the buildable shell, local inventory, workspace/search, protection, and refresh serialization slices exist. Real-browser page-opening verification remains incomplete in the managed desktop environment, so neither browser is called supported.
+
+Implemented locally:
+
+- normalized normal-window tab metadata through separate Chromium and Firefox adapters;
+- IndexedDB tab records with stable local IDs, schema migration to workspaces, and idempotent reconciliation;
+- read-only inventory, local workspace creation, metadata search, and protection controls;
+- a centralized mutation guard, while browser lifecycle mutation and automation remain unimplemented;
+- serialized inventory refreshes so overlapping browser events cannot write stale snapshots concurrently.
+
+Testing execution is intentionally deferred to the project-wide testing pass requested by the project owner. Typechecking, builds, artifact inspection, and diff checks remain part of implementation verification.
 
 Build commands:
 
