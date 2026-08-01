@@ -9,5 +9,9 @@ function runtime(): RawRuntimeApi {
 }
 
 export async function refreshInventory(): Promise<InventoryResponse> {
-  return await runtime().sendMessage({ type: 'refresh-inventory' } satisfies InventoryMessage) as InventoryResponse;
+  return await sendMessage({ type: 'refresh-inventory' });
+}
+
+export async function sendMessage(message: InventoryMessage): Promise<InventoryResponse> {
+  return await runtime().sendMessage(message) as InventoryResponse;
 }
