@@ -8,7 +8,7 @@ The local model artifact is not bundled. The pinned offline candidate evaluation
 
 Current local verification:
 
-- `npm test`: 26 focused tests pass across reconciliation/recovery, safety, operation checkpointing, model fallback, adapter normalization, shell, queue backpressure, and scale fixtures.
+- `npm test`: 28 focused tests pass across reconciliation/recovery, safety, operation checkpointing, model fallback, adapter normalization/capability fallback, shell, queue backpressure, and scale fixtures.
 - `npm run typecheck`: passes.
 - `npm run build:chromium`: passes.
 - `npm run build:firefox`: passes.

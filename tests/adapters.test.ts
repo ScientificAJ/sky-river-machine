@@ -37,3 +37,15 @@ test.each([
   expect((await adapter.queryTabs()).length).toBe(1);
   expect(adapter.getCapabilities().queryTabs).toBe(true);
 });
+
+test.each([
+  ['chromium', 'chrome', createChromiumAdapter],
+  ['firefox', 'browser', createFirefoxAdapter],
+] as const)('%s adapter exposes safe missing-capability fallbacks', async (_name, namespace, create) => {
+  (globalThis as Record<string, unknown>)[namespace] = fakeApi();
+  const adapter = create();
+  expect(adapter.getCapabilities().nativeDiscard).toBe(false);
+  expect(adapter.getCapabilities().visibleContext).toBe(false);
+  await expect(adapter.discardTab(3)).resolves.toBeNull();
+  await expect(adapter.extractVisibleContext(3)).rejects.toThrow('Visible page context is unavailable');
+});
