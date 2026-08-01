@@ -10,6 +10,7 @@ test('the first-run shell stays truthful and mutation-free', () => {
   expect(app).toContain('under construction');
   expect(app).toContain('Workspaces');
   expect(app).toContain('Recovery');
+  expect(app).toContain('Local model status: unavailable');
   expect(app).toContain('disabled');
   expect(app).not.toMatch(/tabs\.(remove|discard|move)/);
 });

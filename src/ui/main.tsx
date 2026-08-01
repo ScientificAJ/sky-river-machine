@@ -2,6 +2,7 @@ import { render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { refreshInventory, sendMessage } from '../browser/extension-client';
 import type { InventoryResponse, Operation, SuggestionBatch, TabRecord, Workspace } from '../shared/types';
+import { BUDGETS } from '../shared/budgets';
 import { searchMetadata } from '../core/search';
 import './styles.css';
 
@@ -45,6 +46,7 @@ function App() {
   };
 
   const visibleRecords = searchMetadata(records, workspaces, query);
+  const renderedRecords = visibleRecords.slice(0, BUDGETS.searchPageSize);
 
   const setProtection = async (record: TabRecord, key: keyof TabRecord['protection']) => {
     const response = await sendMessage({ type: 'set-protection', recordId: record.recordId, [key]: !record.protection[key] });
@@ -150,6 +152,7 @@ function App() {
       <span id="home" class="anchor-target" aria-hidden="true"></span>
       <button type="button" onClick={() => void load()} disabled={status === 'loading'}>Refresh local tab metadata</button>
       <button type="button" onClick={() => void organize()} disabled={status !== 'ready'}>Organize tabs (heuristic suggestions)</button>
+      <p class="quiet">Local model status: unavailable in this build. Heuristic suggestions and manual organization remain available.</p>
       <section id="recovery" class="recovery" aria-labelledby="recovery-heading"><h2 id="recovery-heading">Recovery</h2>{recovery.length > 0 ? <><p role="alert">{recovery.length} operation{recovery.length === 1 ? '' : 's'} need review.</p>{recovery.map((operation) => <p key={operation.operationId}>{operation.kind} · {operation.status} <button type="button" onClick={() => void undo(operation.operationId)}>Try undo</button></p>)}</> : <p>No pending recovery actions.</p>}</section>
       {lastOperation && lastOperation.status === 'applied' && <p class="notice" role="status">{lastOperation.kind} completed. <button type="button" onClick={() => void undo(lastOperation.operationId)}>Undo</button></p>}
       <label id="search" class="field">Search local metadata<input value={query} onInput={(event) => setQuery((event.currentTarget as HTMLInputElement).value)} placeholder="Title, domain, URL, workspace" /></label>
@@ -160,8 +163,8 @@ function App() {
       </p>
       {status === 'ready' && records.length === 0 && <p class="empty">No normal-window tabs are available to show.</p>}
       {status === 'ready' && records.length > 0 && visibleRecords.length === 0 && <p class="empty">No local records match that search.</p>}
-      {visibleRecords.length > 0 && <ul class="tab-list" aria-label="Observed tabs">
-        {visibleRecords.map((record) => (
+      {visibleRecords.length > 0 && <><p class="quiet">Showing {renderedRecords.length} of {visibleRecords.length} matching records.</p><ul class="tab-list" aria-label="Observed tabs">
+        {renderedRecords.map((record) => (
           <li key={record.recordId} class="tab-row">
             <strong>{record.title}</strong>
             <span>{record.domain} · {record.state}{Object.values(record.protection).some(Boolean) ? ' · Protected' : ''}{record.state === 'Dormant' ? ' · Browser page may remain loaded' : ''}</span>
@@ -178,7 +181,7 @@ function App() {
             {record.context && <span>Visible context stored locally: {record.context.headings.length} heading{record.context.headings.length === 1 ? '' : 's'}</span>}
           </li>
         ))}
-      </ul>}
+      </ul></>}
       {suggestions.filter((suggestion) => suggestion.status === 'pending').map((suggestion) => <section class="suggestion" key={suggestion.suggestionId} aria-labelledby={`suggestion-${suggestion.suggestionId}`}>
         <h2 id={`suggestion-${suggestion.suggestionId}`}>Suggested workspace review</h2>
         <p class="quiet">These are bounded metadata suggestions. Review them before applying; no browser tabs move during this step.</p>
