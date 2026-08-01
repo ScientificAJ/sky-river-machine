@@ -11,7 +11,7 @@ Implemented locally:
 - normalized normal-window tab metadata through separate Chromium and Firefox adapters;
 - IndexedDB tab records with stable local IDs, schema migration to workspaces, and idempotent reconciliation;
 - read-only inventory, local workspace creation, metadata search, and protection controls;
-- a centralized mutation guard, while browser lifecycle mutation and automation remain unimplemented;
+- a centralized mutation guard and approval-first lifecycle operations; automation remains off;
 - serialized inventory refreshes so overlapping browser events cannot write stale snapshots concurrently.
 - checkpointed lifecycle operations, restore/archive/rest/delete paths, bounded heuristic suggestions, model-unavailable contracts, and explicit visible-context/export/delete controls.
 
@@ -25,7 +25,7 @@ npm run build:chromium
 npm run build:firefox
 ```
 
-The unpacked outputs are `dist/chromium` and `dist/firefox`. The Chromium manifest uses a Manifest V3 service worker. The Firefox manifest uses a background script entry. Both request only `tabs`; there are no host permissions, content scripts, model assets, remote URLs, analytics, or tab mutations.
+The unpacked outputs are `dist/chromium` and `dist/firefox`. The Chromium manifest uses a Manifest V3 service worker. The Firefox manifest uses a background script entry. Both request only the documented tab metadata and user-invoked context permissions; there are no host permissions, persistent content scripts, model assets, remote URLs, or analytics.
 
 Permission record:
 

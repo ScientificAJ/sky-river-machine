@@ -495,7 +495,9 @@ Dormancy, extinction, searching, and restoring should feel safe enough that user
 
 ## Project status
 
-Sky River Machine is a new project, but its ambition is not a narrow proof of concept.
+The repository now contains a local-only development implementation covering metadata inventory, IndexedDB records, reconciliation, workspaces, metadata search, protection, checkpointed lifecycle paths, bounded heuristic suggestions, model-unavailable fallback contracts, optional bounded visible context, export/delete controls, and accessibility-oriented UI states.
+
+Real-browser smoke testing, browser support claims, measured performance, and local-model artifact qualification are intentionally still pending. Until those gates pass, this is a development build rather than a supported release.
 
 The first useful version is the complete product described in this README. It is expected to understand tab context, organize tabs into meaningful workspaces, label every tab **Active**, **Dormant**, or **Extinct**, manage that lifecycle, protect important pages, detect duplicates, search by meaning, learn from corrections, process sensitive context locally where possible, and restore work when the user needs it.
 
