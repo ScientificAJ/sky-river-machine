@@ -20,7 +20,7 @@
     "preact": "^10.27.2"
   },
   "devDependencies": {
-    "@huggingface/transformers": "^4.2.0",
+    "@huggingface/transformers": "^4.3.0",
     "@preact/preset-vite": "^2.10.2",
     "@types/node": "^26.1.2",
     "typescript": "^5.9.2",
